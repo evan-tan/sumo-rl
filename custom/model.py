@@ -75,6 +75,6 @@ class CustomActorCriticPolicy(ActorCriticPolicy):
     def _build_mlp_extractor(self) -> None:
         self.mlp_extractor = CustomNetwork(self.features_dim)
 
-
-model = PPO(CustomActorCriticPolicy, "CartPole-v1", verbose=1)
-model.learn(5000)
+if __name__ == "__main__":
+    model = PPO(CustomActorCriticPolicy, "CartPole-v1", verbose=1)
+    model.learn(5000)
