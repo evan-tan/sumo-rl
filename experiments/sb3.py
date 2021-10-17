@@ -15,7 +15,7 @@ from stable_baselines3.common.vec_env import VecMonitor
 
 if __name__ == "__main__":
     # TODO: store stuff in json maybe
-    cfg = load_cfg("custom/config.json")
+    cfg = load_cfg("./config.json")
 
     n_evaluations = 20
     n_agents = 1
