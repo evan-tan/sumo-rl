@@ -85,7 +85,7 @@ class TorchRNNModel(TorchRNN, nn.Module):
             NN Outputs (B x T x ...) as sequence.
             The state batches as a List of two items (c- and h-states).
         """
-        x = nn.functional.relu(self.fc1(inputs))
+        x = nn.functional.leaky_relu(self.fc1(inputs))
         self._features, [h, c] = self.lstm(
             x, [torch.unsqueeze(state[0], 0), torch.unsqueeze(state[1], 0)]
         )
