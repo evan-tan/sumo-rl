@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 from copy import deepcopy
+from pathlib import Path
 
 import numpy as np
 import ray
@@ -92,71 +93,39 @@ class TorchRNNModel(TorchRNN, nn.Module):
         return action_out, [torch.squeeze(h, 0), torch.squeeze(c, 0)]
 
 
-class CustomNetwork(TorchModelV2, torch.nn.Module):
-    """PyTorch version of above ParametricActionsModel."""
-
-    def __init__(self, obs_space, action_space, num_outputs, model_config, name, **kw):
-        torch.nn.Module.__init__(self)
-        TorchModelV2.__init__(
-            self, obs_space, action_space, num_outputs, model_config, name, **kw
-        )
-
-        obs_len = obs_space.shape[0] - action_space.n
-
-        orig_obs_space = Box(
-            shape=(obs_len,), low=obs_space.low[:obs_len], high=obs_space.high[:obs_len]
-        )
-        self.action_embed_model = TorchFC(
-            orig_obs_space,
-            action_space,
-            action_space.n,
-            model_config,
-            name + "_action_embed",
-        )
-
-        self.actor = nn.Linear(512, 64)  # policy function
-        self.critic = nn.Linear(512, 1)  # value function
-
-    def forward(self, input_dict, state, seq_lens):
-        # do we need to flatten? if so, use key: 'obs_flat'
-        model_out, self._value_out = self.base_model(input_dict["obs"])
-
-        return model_out, state
-
-    def value_function(self):
-        return self.action_embed_model.value_function()
-
-
-def env_creator():
+def env_creator(num_timesteps):
     """For PettingZoo"""
     env = sumo_rl.env(
-        net_file="nets/4x4-Lucas/4x4.net.xml",
-        route_file="nets/4x4-Lucas/4x4c1c2c1c2.rou.xml",
-        out_csv_name="outputs/4x4grid/test",
+        net_file="nets/big-intersection/big-intersection.net.xml",
+        route_file="nets/big-intersection/routes.rou.xml",
+        out_csv_name="outputs/big-intersection/test",
         use_gui=False,
-        num_seconds=int(1e3),
+        num_seconds=int(num_timesteps),
     )
     return env
 
 
 if __name__ == "__main__":
+    n_timesteps = int(2.5e6)
     algo_name = "PPO".upper()
-    model_name = "gru"
+    model_name = "lstm"
     env_name = "sumo_pz"
     num_cpus = 6
     num_rollouts = 12
 
     ModelCatalog.register_custom_model(model_name, TorchRNNModel)
-    register_env(env_name, lambda config: PettingZooEnv(env_creator()))
-    config = deepcopy(get_agent_class(algo_name)._default_config)
+    register_env(env_name, lambda config: PettingZooEnv(env_creator(n_timesteps)))
 
-    tmp_env = PettingZooEnv(env_creator())
-    obs_space = tmp_env.observation_space
-    act_space = tmp_env.action_space
-
-    policy_dict = {"policy_0": (None, obs_space, act_space, {})}
+    tmp_env = PettingZooEnv(env_creator(n_timesteps))
+    policy_dict = {
+        "policy_0": (None, tmp_env.observation_space, tmp_env.action_space, {})
+    }
     policy_ids = list(policy_dict.keys())
     assert len(policy_ids) == 1
+
+    config = deepcopy(get_agent_class(algo_name)._default_config)
+    # https://docs.ray.io/en/latest/rllib-training.html#common-parameters
+    # https://docs.ray.io/en/latest/rllib-algorithms.html#proximal-policy-optimization-ppo
     config["multiagent"] = {
         "policies": policy_dict,
         "policy_mapping_fn": (lambda agent_id: policy_ids[0]),
@@ -167,23 +136,32 @@ if __name__ == "__main__":
     config["num_workers"] = 1
     config["num_gpus"] = int(os.environ.get("RLLIB_NUM_GPUS", "0"))
     config["rollout_fragment_length"] = 30
+    # Training batch size, if applicable. Should be >= rollout_fragment_length.
+    # Samples batches will be concatenated together to a batch of this size,
+    # which is then passed to SGD.
     config["train_batch_size"] = 200
     config["horizon"] = 200  # after n steps, reset sim
     config["no_done_at_end"] = False
     config["model"] = {
         "custom_model": model_name,
     }
+    # TODO: doesn't seem to work, how to eval?
+    # config["evaluation_interval"] = "auto"
+    # config["evaluation_parallel_to_training"] = True
 
     # config['hiddens'] = []
+    # you must first register env_name so that RLlib knows it exists
     config["env"] = env_name
 
     ray.init(num_cpus=num_cpus)
 
     run_name = algo_name + "-" + env_name
+    cwd = str(Path.cwd() / "ray_results")
     tune.run(
         algo_name,
         name=run_name,
-        stop={"timesteps_total": 1000},
-        checkpoint_freq=10,
+        stop={"timesteps_total": n_timesteps},
+        checkpoint_freq=100,
         config=config,
+        local_dir=cwd,
     )
