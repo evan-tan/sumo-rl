@@ -5,6 +5,7 @@ from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
+import psutil
 import ray
 import ray.rllib.agents.ppo as ppo
 import sumo_rl
@@ -106,17 +107,20 @@ def env_creator(num_timesteps):
 
 
 if __name__ == "__main__":
-    n_timesteps = int(2.5e6)
+    # 3070 GPU, 7.5 hours... 1 worker...
+    # 4x4 -> 2.5e6 steps
+    # big intersection -> 5.4e5 steps
+    num_workers = 16
+    num_timesteps = int(5.4e5 * num_workers)
     algo_name = "PPO".upper()
     model_name = "lstm"
     env_name = "sumo_pz"
-    num_cpus = 6
-    num_rollouts = 12
+    num_cpus = int(psutil.cpu_count() - 2)
 
     ModelCatalog.register_custom_model(model_name, TorchRNNModel)
-    register_env(env_name, lambda config: PettingZooEnv(env_creator(n_timesteps)))
+    register_env(env_name, lambda config: PettingZooEnv(env_creator(num_timesteps)))
 
-    tmp_env = PettingZooEnv(env_creator(n_timesteps))
+    tmp_env = PettingZooEnv(env_creator(num_timesteps))
     policy_dict = {
         "policy_0": (None, tmp_env.observation_space, tmp_env.action_space, {})
     }
@@ -133,18 +137,21 @@ if __name__ == "__main__":
 
     config["framework"] = "torch"
     config["log_level"] = "DEBUG"
-    config["num_workers"] = 1
-    config["num_gpus"] = int(os.environ.get("RLLIB_NUM_GPUS", "0"))
+    config["num_workers"] = num_workers
+    config["num_gpus"] = 1 if torch.cuda.is_available() else 0
     config["rollout_fragment_length"] = 30
     # Training batch size, if applicable. Should be >= rollout_fragment_length.
     # Samples batches will be concatenated together to a batch of this size,
     # which is then passed to SGD.
-    config["train_batch_size"] = 200
+    config["train_batch_size"] = 200 * num_workers
     config["horizon"] = 200  # after n steps, reset sim
     config["no_done_at_end"] = False
     config["model"] = {
         "custom_model": model_name,
     }
+    config["lr"] = 5e-5  # default: 5e-5
+    config["lr_schedule"] = None  # default: None
+    config["sgd_minibatch_size"] = 128  # default: 128
     # TODO: doesn't seem to work, how to eval?
     # config["evaluation_interval"] = "auto"
     # config["evaluation_parallel_to_training"] = True
@@ -160,7 +167,7 @@ if __name__ == "__main__":
     tune.run(
         algo_name,
         name=run_name,
-        stop={"timesteps_total": n_timesteps},
+        stop={"timesteps_total": num_timesteps},
         checkpoint_freq=100,
         config=config,
         local_dir=cwd,
