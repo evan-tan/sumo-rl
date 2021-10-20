@@ -100,7 +100,7 @@ def env_creator(num_timesteps):
         net_file="nets/big-intersection/big-intersection.net.xml",
         route_file="nets/big-intersection/routes.rou.xml",
         out_csv_name="outputs/big-intersection/test",
-        use_gui=False,
+        use_gui=True,
         num_seconds=int(num_timesteps),
     )
     return env
@@ -110,7 +110,7 @@ if __name__ == "__main__":
     # 3070 GPU, 7.5 hours... 1 worker...
     # 4x4 -> 2.5e6 steps
     # big intersection -> 5.4e5 steps
-    num_workers = 16
+    num_workers = 1
     num_timesteps = int(5.4e5 * num_workers)
     algo_name = "PPO".upper()
     model_name = "lstm"
@@ -139,19 +139,19 @@ if __name__ == "__main__":
     config["log_level"] = "DEBUG"
     config["num_workers"] = num_workers
     config["num_gpus"] = 1 if torch.cuda.is_available() else 0
-    config["rollout_fragment_length"] = 30
+    config["rollout_fragment_length"] = 1000
     # Training batch size, if applicable. Should be >= rollout_fragment_length.
     # Samples batches will be concatenated together to a batch of this size,
     # which is then passed to SGD.
-    config["train_batch_size"] = 200 * num_workers
-    config["horizon"] = 200  # after n steps, reset sim
+    config["train_batch_size"] = int(config["rollout_fragment_length"] * num_workers)
+    config["horizon"] = 6000  # after n steps, reset sim
     config["no_done_at_end"] = False
     config["model"] = {
         "custom_model": model_name,
     }
     config["lr"] = 5e-5  # default: 5e-5
     config["lr_schedule"] = None  # default: None
-    config["sgd_minibatch_size"] = 128  # default: 128
+    config["sgd_minibatch_size"] = 64  # default: 128
     # TODO: doesn't seem to work, how to eval?
     # config["evaluation_interval"] = "auto"
     # config["evaluation_parallel_to_training"] = True
