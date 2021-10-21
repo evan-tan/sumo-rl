@@ -226,28 +226,35 @@ if __name__ == "__main__":
         del config["_disable_preprocessor_api"]
         del config["num_workers"]
         del config["num_gpus"]
-        ray.init(num_cpus=num_cpus)
+
+        ray.init(num_cpus=num_cpus, num_gpus=0)
         PPOAgent = ppo.PPOTrainer(config=config, env=env_name)
         PPOAgent.restore(checkpoint_path)
 
         done = False
-        env.reset()
         # single agent
         reward_sums = {a: 0 for a in env.possible_agents}
 
         cell_size = 256
-        state = [np.zeros(cell_size, np.float32), np.zeros(cell_size, np.float32)]
+        state = [
+            unsqueeze(np.zeros(cell_size, np.float32), dim=0),
+            unsqueeze(np.zeros(cell_size, np.float32), dim=0),
+        ]
 
+        env.reset()
         for agent in env.agent_iter():
+
             # agent == "TL"
             assert agent in reward_sums.keys()
 
             obs, reward, done, info = env.last()
             # access observation from dict
-            # convert to obs_dict
+            # wrap into obs_dict
+            print(obs)
             obs = {"obs": obs, "obs_flat": obs.flatten()}
-
+            obs["obs"] = unsqueeze(obs["obs"], dim=0)
             reward_sums[agent] += reward
+
             if done:
                 action = None
             else:
@@ -255,14 +262,13 @@ if __name__ == "__main__":
                 # agent == "TL" but policy named "policy_0"
                 policy = PPOAgent.get_policy("policy_0")
                 # action, state, logits = policy.compute_action(obs, state)
-                batch_action, state_out, info = policy.compute_actions_from_input_dict(
-                    obs, state
+                batch_action, state_out, info = policy.compute_actions(
+                    obs["obs"], state
                 )
-                # single_action = batch_action[0]
-                # action = single_action
+                action = batch_action[0]
 
-                # env.step(action)
-                # print("Rewards: ", reward_sums)
+            env.step(action)
+            print("Rewards: ", reward_sums)
 
 # tmp_env = PettingZooEnv(env_creator(num_timesteps))
 # policy_dict = {
