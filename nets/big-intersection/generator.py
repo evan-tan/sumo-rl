@@ -78,4 +78,4 @@ class TrafficGenerator:
 
             print("</routes>", file=routes)
 
-TrafficGenerator(5400, 4000).generate_routefile(0)
+TrafficGenerator(40000, 10000).generate_routefile(0)
