@@ -1,12 +1,13 @@
 import os
 import sys
+
 if 'SUMO_HOME' in os.environ:
     tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
     sys.path.append(tools)
 else:
     sys.exit("Please declare the environment variable 'SUMO_HOME'")
-import traci
 import numpy as np
+import traci
 from gym import spaces
 
 
@@ -37,6 +38,7 @@ class TrafficSignal:
         self.time_since_last_phase_change = 0
         self.next_action_time = begin_time
         self.last_measure = 0.0
+        self.last_flow = 0.0
         self.last_reward = None
         self.sumo = sumo
 
@@ -92,7 +94,7 @@ class TrafficSignal:
     @property
     def time_to_act(self):
         return self.next_action_time == self.env.sim_step
-    
+
     def update(self):
         self.time_since_last_phase_change += 1
         if self.is_yellow and self.time_since_last_phase_change == self.yellow_time:
@@ -104,7 +106,7 @@ class TrafficSignal:
         """
         Sets what will be the next green phase and sets yellow phase if the next phase is different than the current
 
-        :param new_phase: (int) Number between [0..num_green_phases] 
+        :param new_phase: (int) Number between [0..num_green_phases]
         """
         new_phase = int(new_phase)
         if self.green_phase == new_phase or self.time_since_last_phase_change < self.yellow_time + self.min_green:
@@ -118,7 +120,7 @@ class TrafficSignal:
             self.next_action_time = self.env.sim_step + self.delta_time
             self.is_yellow = True
             self.time_since_last_phase_change = 0
-    
+
     def compute_observation(self):
         phase_id = [1 if self.green_phase == i else 0 for i in range(self.num_green_phases)]  # one-hot encoding
         min_green = [0 if self.time_since_last_phase_change < self.min_green + self.yellow_time else 1]
@@ -126,11 +128,33 @@ class TrafficSignal:
         queue = self.get_lanes_queue()
         observation = np.array(phase_id + min_green + density + queue, dtype=np.float32)
         return observation
-            
+
     def compute_reward(self):
-        self.last_reward = self._waiting_time_reward()
+        # self.last_reward = self._waiting_time_reward()
+        self.last_reward = self.flow_reward()
         return self.last_reward
-    
+
+    def flow_reward(self):
+        curr_flow = self._current_flow()
+        d_flow = curr_flow - self.last_flow
+        self.last_flow = curr_flow
+        print(f"Delta Flow: {d_flow}")
+        return d_flow
+
+    def _current_flow(self):
+        average_speed = []
+        for lane in self.lanes:
+            vehicle_list = self.sumo.lane.getLastStepVehicleIDs(lane)
+            for vehicle in vehicle_list:
+                v_speed = self.sumo.vehicle.getSpeed(vehicle)
+                average_speed.append(v_speed)
+
+        if len(average_speed) > 0:
+            flow = sum(average_speed) / len(average_speed)
+        else:
+            flow = 0
+        return flow
+
     def _pressure_reward(self):
         return -self.get_pressure()
 
@@ -194,7 +218,7 @@ class TrafficSignal:
     def get_lanes_queue(self):
         vehicle_size_min_gap = 7.5  # 5(vehSize) + 2.5(minGap)
         return [min(1, self.sumo.lane.getLastStepHaltingNumber(lane) / (self.lanes_lenght[lane] / vehicle_size_min_gap)) for lane in self.lanes]
-    
+
     def get_total_queued(self):
         return sum([self.sumo.lane.getLastStepHaltingNumber(lane) for lane in self.lanes])
 

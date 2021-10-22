@@ -44,9 +44,7 @@ class CustomHandler:
         self._max_env_timesteps = None
         self._cwd = Path.cwd()
         self.paths = {
-            "net": str(
-                self._cwd / "nets/big-intersection/big-intersection.net.xml"
-            ),
+            "net": str(self._cwd / "nets/big-intersection/big-intersection.net.xml"),
             "route": str(self._cwd / "nets/big-intersection/routes.rou.xml"),
             "output_csv": str(self._cwd / "outputs/big-intersection/test"),
         }
@@ -61,7 +59,9 @@ class CustomHandler:
 
         register_env(
             self.env_name,
-            lambda config: PettingZooEnv(env_creator(self._max_env_timesteps, self.paths)),
+            lambda config: PettingZooEnv(
+                env_creator(self._max_env_timesteps, self.paths)
+            ),
         )
 
     def configure(self, mode):
@@ -110,8 +110,8 @@ class CustomHandler:
             # self.train_cfg["train_batch_size"] = 200 * num_train_workers
             self.train_cfg["train_batch_size"] = self.train_cfg["rollout_fragment_length"] * num_train_workers
             # after n steps, reset sim,
-            # NOTE: this shoudl match max_steps // 5 in TrafficGenerator
-            self.train_cfg["horizon"] = 8000
+            # NOTE: this shoudl match max_steps # 5 in TrafficGenerator
+            self.train_cfg["horizon"] = int(40e3 / 5 * 0.6)  # should be traffic generator timestep / 5 * 0.6
             self.train_cfg["no_done_at_end"] = False
             self.train_cfg["model"] = {
                 "custom_model": self._model_class.__name__,
@@ -193,7 +193,6 @@ class CustomHandler:
                     action = batch_action[0]
 
                 self.env.step(action)
-                print("Rewards: ", reward_sums)
 
     def save(self):
         pass
