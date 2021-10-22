@@ -14,15 +14,19 @@ def unsqueeze(arr: np.ndarray, dim: int) -> np.ndarray:
     return np.expand_dims(arr, axis=dim)
 
 
-def env_creator(num_timesteps, parallel=False):
+def env_creator(num_timesteps, paths, parallel=False):
     """For PettingZoo"""
-
     env_timestep = 5
+    assert len(paths.keys()) != 0
+    net = paths.get('net')
+    route = paths.get('route')
+    out_csv = paths.get('output_csv')
+
     if parallel:
         env = sumo_rl.parallel_env(
-            net_file="nets/big-intersection/big-intersection.net.xml",
-            route_file="nets/big-intersection/routes.rou.xml",
-            out_csv_name="outputs/big-intersection/test",
+            net_file=net,
+            route_file=route,
+            out_csv_name=out_csv,
             use_gui=True,
             num_seconds=int(num_timesteps),
             delta_time=env_timestep,
@@ -32,9 +36,9 @@ def env_creator(num_timesteps, parallel=False):
         )
     else:
         env = sumo_rl.env(
-            net_file="nets/big-intersection/big-intersection.net.xml",
-            route_file="nets/big-intersection/routes.rou.xml",
-            out_csv_name="outputs/big-intersection/test",
+            net_file=net,
+            route_file=route,
+            out_csv_name=out_csv,
             use_gui=True,
             num_seconds=int(num_timesteps),
             delta_time=env_timestep,

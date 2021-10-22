@@ -42,31 +42,37 @@ class CustomHandler:
         self._model_class = TorchRNNModel
         self._num_cpus = int(psutil.cpu_count() - 2)
         self._max_env_timesteps = None
-        assert self._num_workers <= self._num_cpus
+        self._cwd = Path.cwd()
+        self.paths = {
+            "net": str(
+                self._cwd / "nets/big-intersection/big-intersection.net.xml"
+            ),
+            "route": str(self._cwd / "nets/big-intersection/routes.rou.xml"),
+            "output_csv": str(self._cwd / "outputs/big-intersection/test"),
+        }
 
     def register_envs(self):
         assert self._max_env_timesteps is not None
 
         # you must first register model, or env so that RLlib knows it exists
-        ModelCatalog.register_custom_model(self._model_class.__name__, self._model_class)
+        ModelCatalog.register_custom_model(
+            self._model_class.__name__, self._model_class
+        )
 
         register_env(
             self.env_name,
-            lambda config: PettingZooEnv(env_creator(self._max_env_timesteps)),
+            lambda config: PettingZooEnv(env_creator(self._max_env_timesteps, self.paths)),
         )
 
     def configure(self, mode):
         """Configure parameters based on train or test"""
-        if self._num_workers > 0:
-            self._max_env_timesteps = int(5.4e5) * self._num_workers
-        else:
-            self._max_env_timesteps = int(5.4e5)
-        self.env = env_creator(self._max_env_timesteps)
-
         if mode == "test":
-            self.test_cfg = deepcopy(self.default_cfg)
+            self._max_env_timesteps = int(5.4e5)
+            self.env = env_creator(self._max_env_timesteps, self.paths)
+
+            self.test_cfg = deepcopy(self.default_cfg, self.paths)
             self.test_cfg["env"] = self.env_name
-            tmp_env = env_creator(self._max_env_timesteps)
+            tmp_env = env_creator(self._max_env_timesteps, self.paths)
             self.test_cfg["action_space"] = tmp_env.action_space
             self.test_cfg["observation_space"] = tmp_env.observation_space
             self.test_cfg["num_workers"] = 0
@@ -87,6 +93,10 @@ class CustomHandler:
             # https://docs.ray.io/en/latest/rllib-algorithms.html#proximal-policy-optimization-ppo
 
             num_train_workers = int(psutil.cpu_count() - 8)
+            assert num_train_workers <= self._num_cpus
+            self._max_env_timesteps = int(5.4e5) * num_train_workers
+            self.env = env_creator(self._max_env_timesteps, self.paths)
+
             self.train_cfg["env"] = self.env_name
             self.train_cfg["framework"] = "torch"
             self.train_cfg["log_level"] = "DEBUG"
@@ -96,6 +106,7 @@ class CustomHandler:
             # Training batch size, if applicable. Should be >= rollout_fragment_length.
             # Samples batches will be concatenated together to a batch of this size,
             # which is then passed to SGD.
+            # self.train_cfg["train_batch_size"] = 200 * num_train_workers
             self.train_cfg["train_batch_size"] = 4000
             # after n steps, reset sim,
             # NOTE: this shoudl match max_steps // 5 in TrafficGenerator
@@ -123,14 +134,14 @@ class CustomHandler:
         ray.init(num_cpus=self._num_cpus)
 
         run_name = self.algo_name + "-" + self.env_name
-        cwd = str(Path.cwd() / "ray_results")
+        log_dir = str(self._cwd / "ray_results")
         tune.run(
             self.algo_name,
             name=run_name,
             stop={"timesteps_total": self._max_env_timesteps},
             checkpoint_freq=100,
             config=self.train_cfg,
-            local_dir=cwd,
+            local_dir=log_dir,
         )
 
     def test(self, checkpoint_path):
@@ -191,14 +202,16 @@ class CustomHandler:
 
 
 if __name__ == "__main__":
-
+    handler = CustomHandler()
     # train model
+    handler.configure("train")
+    handler.register_envs()
+    handler.train()
 
     # save model
 
-    # test model
-    checkpoint_path = "ray_results/PPO-sumo_pz/PPO_sumo_pz_a2aca_00000_0_2021-10-19_13-37-23/checkpoint_001900/checkpoint-1900"
-    handler = CustomHandler()
-    handler.configure("test")
-    handler.register_envs()
-    handler.test(checkpoint_path)
+    # # test model
+    # checkpoint_path = "ray_results/PPO-sumo_pz/PPO_sumo_pz_a2aca_00000_0_2021-10-19_13-37-23/checkpoint_001900/checkpoint-1900"
+    # handler.configure("test")
+    # handler.register_envs()
+    # handler.test(checkpoint_path)
