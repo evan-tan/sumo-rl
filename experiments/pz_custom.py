@@ -40,14 +40,15 @@ class CustomHandler:
         self.default_cfg = deepcopy(get_agent_class(self.algo_name)._default_config)
         self.env_name = "sumo_pz"
         self._model_class = TorchRNNModel
-        self._num_workers = int(psutil.cpu_count() - 8)
         self._num_cpus = int(psutil.cpu_count() - 2)
         self._max_env_timesteps = None
         assert self._num_workers <= self._num_cpus
 
     def register_envs(self):
         assert self._max_env_timesteps is not None
-        ModelCatalog.register_custom_model("lstm", self._model_class)
+
+        # you must first register model, or env so that RLlib knows it exists
+        ModelCatalog.register_custom_model(self._model_class.__name__, self._model_class)
 
         register_env(
             self.env_name,
@@ -56,9 +57,6 @@ class CustomHandler:
 
     def configure(self, mode):
         """Configure parameters based on train or test"""
-        if mode == "test":
-            self._num_workers = 0
-
         if self._num_workers > 0:
             self._max_env_timesteps = int(5.4e5) * self._num_workers
         else:
@@ -71,7 +69,7 @@ class CustomHandler:
             tmp_env = env_creator(self._max_env_timesteps)
             self.test_cfg["action_space"] = tmp_env.action_space
             self.test_cfg["observation_space"] = tmp_env.observation_space
-            self.test_cfg["num_workers"] = self._num_workers
+            self.test_cfg["num_workers"] = 0
             self.test_cfg["num_gpus"] = 0
             self.test_cfg["in_evaluation"] = True
             self.test_cfg["evaluation_num_workers"] = 1
@@ -88,16 +86,17 @@ class CustomHandler:
             # https://docs.ray.io/en/latest/rllib-training.html#common-parameters
             # https://docs.ray.io/en/latest/rllib-algorithms.html#proximal-policy-optimization-ppo
 
+            num_train_workers = int(psutil.cpu_count() - 8)
             self.train_cfg["env"] = self.env_name
             self.train_cfg["framework"] = "torch"
             self.train_cfg["log_level"] = "DEBUG"
-            self.train_cfg["num_workers"] = self._num_workers
+            self.train_cfg["num_workers"] = num_train_workers
             self.train_cfg["num_gpus"] = 1 if torch.cuda.is_available() else 0
             self.train_cfg["rollout_fragment_length"] = 30
             # Training batch size, if applicable. Should be >= rollout_fragment_length.
             # Samples batches will be concatenated together to a batch of this size,
             # which is then passed to SGD.
-            self.train_cfg["train_batch_size"] = 200 * self._num_workers
+            self.train_cfg["train_batch_size"] = 4000
             # after n steps, reset sim,
             # NOTE: this shoudl match max_steps // 5 in TrafficGenerator
             self.train_cfg["horizon"] = 8000
@@ -108,7 +107,6 @@ class CustomHandler:
             self.train_cfg["lr"] = 5e-5  # default: 5e-5
             self.train_cfg["lr_schedule"] = None  # default: None
             self.train_cfg["sgd_minibatch_size"] = 128  # default: 128
-            # you must first register env_name so that RLlib knows it exists
 
     def train(self):
         tmp_env = PettingZooEnv(self.env)
