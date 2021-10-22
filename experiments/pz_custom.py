@@ -102,12 +102,13 @@ class CustomHandler:
             self.train_cfg["log_level"] = "DEBUG"
             self.train_cfg["num_workers"] = num_train_workers
             self.train_cfg["num_gpus"] = 1 if torch.cuda.is_available() else 0
-            self.train_cfg["rollout_fragment_length"] = 30
+            self.train_cfg["num_sgd_iter"] =  30
+            self.train_cfg["rollout_fragment_length"] = 100
             # Training batch size, if applicable. Should be >= rollout_fragment_length.
             # Samples batches will be concatenated together to a batch of this size,
             # which is then passed to SGD.
             # self.train_cfg["train_batch_size"] = 200 * num_train_workers
-            self.train_cfg["train_batch_size"] = 4000
+            self.train_cfg["train_batch_size"] = self.train_cfg["rollout_fragment_length"] * num_train_workers
             # after n steps, reset sim,
             # NOTE: this shoudl match max_steps // 5 in TrafficGenerator
             self.train_cfg["horizon"] = 8000
@@ -117,7 +118,7 @@ class CustomHandler:
             }
             self.train_cfg["lr"] = 5e-5  # default: 5e-5
             self.train_cfg["lr_schedule"] = None  # default: None
-            self.train_cfg["sgd_minibatch_size"] = 128  # default: 128
+            self.train_cfg["sgd_minibatch_size"] = 64  # default: 128
 
     def train(self):
         tmp_env = PettingZooEnv(self.env)
