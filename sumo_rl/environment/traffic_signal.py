@@ -130,8 +130,9 @@ class TrafficSignal:
         return observation
 
     def compute_reward(self):
-        # self.last_reward = self._waiting_time_reward()
-        self.last_reward = self.flow_reward()
+        self.last_reward = self._waiting_time_reward()
+        #self.last_reward = self.flow_reward()
+        #print(f"Last reward: {self.last_reward}")
         return self.last_reward
 
     def flow_reward(self):

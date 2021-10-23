@@ -243,7 +243,9 @@ class SumoEnvironment:
             'step_time': self.sim_step,
             'reward': self.traffic_signals[self.ts_ids[0]].last_reward,
             'total_stopped': sum(self.traffic_signals[ts].get_total_queued() for ts in self.ts_ids),
-            'total_wait_time': sum(sum(self.traffic_signals[ts].get_waiting_time_per_lane()) for ts in self.ts_ids)
+            'total_wait_time': sum(sum(self.traffic_signals[ts].get_waiting_time_per_lane()) for ts in self.ts_ids),
+            'wait_time_per_lane': [self.traffic_signals[self.ts_ids[0]].get_waiting_time_per_lane()][0],
+            'average_speed (flow)': self.traffic_signals[self.ts_ids[0]]._current_flow()
         }
 
     def close(self):
