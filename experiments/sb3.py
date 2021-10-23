@@ -20,13 +20,13 @@ if __name__ == "__main__":
     n_evaluations = 20
     n_agents = 1
     n_envs = 1  # You can not use LIBSUMO if using more than one env
-    train_timesteps = int(1e3)
-    eval_timesteps = int(1e3)
+    train_timesteps = int(1e4)
+    eval_timesteps = int(1e4)
 
     env = sumo_rl.parallel_env(
-        net_file="nets/4x4-Lucas/4x4.net.xml",
-        route_file="nets/4x4-Lucas/4x4c1c2c1c2.rou.xml",
-        out_csv_name="outputs/4x4grid/test",
+        net_file="nets/big-intersection/big-intersection.net.xml",
+        route_file="nets/big-intersection/routes.rou.xml",
+        out_csv_name="outputs/big-intersection/test",
         use_gui=True,
         num_seconds=train_timesteps,
     )
@@ -37,9 +37,9 @@ if __name__ == "__main__":
     env = VecMonitor(env)
 
     eval_env = sumo_rl.parallel_env(
-        net_file="nets/4x4-Lucas/4x4.net.xml",
-        route_file="nets/4x4-Lucas/4x4c1c2c1c2.rou.xml",
-        out_csv_name="outputs/4x4grid/test",
+        net_file="nets/big-intersection/big-intersection.net.xml",
+        route_file="nets/big-intersection/routes.rou.xml",
+        out_csv_name="outputs/big-intersection/eval",
         use_gui=False,
         num_seconds=eval_timesteps,
     )
@@ -52,22 +52,23 @@ if __name__ == "__main__":
     eval_env = VecMonitor(eval_env)
 
     eval_freq = int(train_timesteps / n_evaluations)
-    eval_freq = 1000  # max(eval_freq // (n_envs*n_agents), 1)
+    eval_freq = 100000  # max(eval_freq // (n_envs*n_agents), 1)
 
     # TODO: replace with custom policy
     model = PPO(
-        CustomActorCriticPolicy,
+        #CustomActorCriticPolicy,
+        "MlpPolicy",
         env,
         verbose=3,
-        gamma=0.95,
+        gamma=0.90,
         n_steps=256,
         ent_coef=0.0905168,
-        learning_rate=0.00062211,
+        learning_rate=0.0003,
         vf_coef=0.042202,
         max_grad_norm=0.9,
-        gae_lambda=0.99,
+        gae_lambda=0.9,
         n_epochs=5,
-        clip_range=0.3,
+        clip_range=0.25,
         batch_size=256,
     )
     eval_callback = EvalCallback(
