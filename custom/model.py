@@ -5,6 +5,7 @@ from typing import Callable, Dict, List, Optional, Tuple, Type, Union
 import gym
 import numpy as np
 import torch
+import torch as T
 import torch.nn as nn
 import torch.nn.functional as F
 from stable_baselines3 import PPO
@@ -14,63 +15,52 @@ from torch.optim import lr_scheduler
 
 torch.backends.cudnn.benchmark = False
 
-class CustomNetworkSB3(nn.Module):
+
+class CustomNetwork(nn.Module):
     """
     Custom network for policy and value function.
     It receives as input the features extracted by the feature extractor.
 
     :param feature_dim: dimension of the features extracted with the features_extractor (e.g. features from a CNN)
-    :param actor_out_dim: (int) number of units for the last layer of the policy network
-    :param critic_out_dim: (int) number of units for the last layer of the value network
+    :param last_layer_dim_pi: (int) number of units for the last layer of the policy network
+    :param last_layer_dim_vf: (int) number of units for the last layer of the value network
     """
 
     def __init__(
         self,
         feature_dim: int,
-        actor_out_dim: int = 64,
-        critic_out_dim: int = 64,
+        last_layer_dim_pi: int = 64,
+        last_layer_dim_vf: int = 256,
     ):
-        super(CustomNetworkSB3, self).__init__()
+        super(CustomNetwork, self).__init__()
 
         # IMPORTANT:
         # Save output dimensions, used to create the distributions
-        self.latent_dim_pi = actor_out_dim
-        self.latent_dim_vf = critic_out_dim
+        self.features_dim = feature_dim
+        self.latent_dim_pi = last_layer_dim_pi
+        self.latent_dim_vf = last_layer_dim_vf
 
         # Policy network
         self.policy_net = nn.Sequential(
-            nn.Linear(256, actor_out_dim), nn.LeakyReLU()
+            nn.Linear(feature_dim, last_layer_dim_pi),
+            nn.Tanh(),
+            nn.Linear(last_layer_dim_pi, last_layer_dim_pi),
+            nn.Tanh(),
         )
         # Value network
         self.value_net = nn.Sequential(
-            nn.Linear(256, critic_out_dim), nn.LeakyReLU()
+            nn.Linear(feature_dim, last_layer_dim_vf),
+            nn.Tanh(),
+            nn.Linear(last_layer_dim_vf, last_layer_dim_vf),
+            nn.Tanh(),
         )
 
-        self._num_layers = 1  # no stacked GRUs
-        self._hidden_size = 256
-        self.gru = nn.GRU(
-            feature_dim,
-            self._hidden_size,
-            self._num_layers,
-            batch_first=True,
-            dropout=0,
-        )
-
-    def forward(self, features: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, features: T.Tensor) -> Tuple[T.Tensor, T.Tensor]:
         """
-        :return: (torch.Tensor, torch.Tensor) latent_policy, latent_value of the specified network.
+        :return: (th.Tensor, th.Tensor) latent_policy, latent_value of the specified network.
             If all layers are shared, then ``latent_policy == latent_value``
         """
-        batch_size = features.size(0)
-        h_init = torch.zeros(self._num_layers, batch_size, self._hidden_size)
-
-        # gru input shape: (batch size, seq_len, num_actions)
-        out, h = self.gru(features, h_init)
-
-        out = nn.LeakyReLU(out[:, -1, :])
-
-        # share input for actor critic
-        return self.policy_net(out), self.value_net(out)
+        return self.policy_net(features), self.value_net(features)
 
 
 class CustomActorCriticPolicy(ActorCriticPolicy):
@@ -99,14 +89,15 @@ class CustomActorCriticPolicy(ActorCriticPolicy):
         self.ortho_init = False
 
     def _build_mlp_extractor(self) -> None:
-        # this is actually a GRU...
-        self.mlp_extractor = CustomNetworkSB3(self.features_dim)
+        self.mlp_extractor = CustomNetwork(self.features_dim)
+
 
 from ray.rllib.models.modelv2 import ModelV2
 from ray.rllib.models.preprocessors import get_preprocessor
 from ray.rllib.models.torch.fcnet import FullyConnectedNetwork as TorchFC
 from ray.rllib.models.torch.recurrent_net import RecurrentNetwork as TorchRNN
 from ray.rllib.utils.annotations import override
+
 
 # NOTE: For RLlib ONLY
 class TorchRNNModel(TorchRNN, nn.Module):
@@ -167,7 +158,6 @@ class TorchRNNModel(TorchRNN, nn.Module):
         )
         action_out = self.action_branch(self._features)
         return action_out, [torch.squeeze(h, 0), torch.squeeze(c, 0)]
-
 
 
 if __name__ == "__main__":
