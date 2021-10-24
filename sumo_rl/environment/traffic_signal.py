@@ -138,7 +138,7 @@ class TrafficSignal:
         r_flow = self.flow_reward()
         r_wait = self._waiting_time_reward() / 20
         # for r_wait, signs already handled in function
-        reward = -5 * r_pressure + 2 * r_wait + r_flow
+        reward = 5 * r_pressure + 2 * r_wait + r_flow
         return reward
 
     def flow_reward(self):
