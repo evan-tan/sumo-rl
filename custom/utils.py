@@ -1,8 +1,29 @@
 import json
+from typing import List
 
 import numpy as np
 import sumo_rl
 
+
+def smooth_data(scalars: List[float], weight: float) -> List[float]:
+    """Tensorboard smoothing function to smooth noisy training data
+
+    :param scalars: data points to smooth
+    :type scalars: List[float]
+    :param weight: Exponential Moving Average weight in 0-1
+    :type weight: float
+    :return: smoothed data points
+    :rtype: List[float]
+    """
+    assert weight >= 0 and weight <= 1
+    last = scalars[0]  # First value in the plot (first timestep)
+    smoothed = list()
+    for point in scalars:
+        smoothed_val = last * weight + (1 - weight) * point
+        smoothed.append(smoothed_val)
+        last = smoothed_val
+
+    return smoothed
 
 def load_cfg(json_file) -> np.ndarray:
     with open(json_file, "r") as f:
