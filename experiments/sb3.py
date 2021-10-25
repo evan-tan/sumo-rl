@@ -17,18 +17,26 @@ if __name__ == "__main__":
     # TODO: store stuff in json maybe
     cfg = load_cfg("./config.json")
 
-    n_evaluations = 20
+    n_evaluations = 5
     n_agents = 1
-    n_envs = 1  # You can not use LIBSUMO if using more than one env
-    train_timesteps = int(1e4)
-    eval_timesteps = int(1e4)
+    n_envs = 2  # You can not use LIBSUMO if using more than one env
+    train_timesteps = int(1e5)
+    eval_timesteps = int(1e3)
 
     env = sumo_rl.parallel_env(
         net_file="nets/big-intersection/big-intersection.net.xml",
         route_file="nets/big-intersection/routes.rou.xml",
-        out_csv_name="outputs/big-intersection/test",
+        out_csv_name="outputs/big-intersection/train",
+        # net_file='nets/2way-single-intersection/single-intersection.net.xml',
+        # route_file='nets/2way-single-intersection/single-intersection-gen.rou.xml',
+        # out_csv_name='outputs/2way-single-intersection/a2c',
         use_gui=True,
         num_seconds=train_timesteps,
+        delta_time=7, 
+        yellow_time=2,
+        min_green=5,
+        max_green=100,
+        max_depart_delay=0
     )
 
     # env = ss.frame_stack_v1(env, 3)
@@ -40,8 +48,16 @@ if __name__ == "__main__":
         net_file="nets/big-intersection/big-intersection.net.xml",
         route_file="nets/big-intersection/routes.rou.xml",
         out_csv_name="outputs/big-intersection/eval",
-        use_gui=False,
+        # net_file='nets/2way-single-intersection/single-intersection.net.xml',
+        # route_file='nets/2way-single-intersection/single-intersection-gen.rou.xml',
+        # out_csv_name='outputs/2way-single-intersection/a2c',
+        use_gui=True,
         num_seconds=eval_timesteps,
+        delta_time=7, 
+        yellow_time=2,
+        min_green=5,
+        max_green=100,
+        max_depart_delay=0
     )
 
     # eval_env = ss.frame_stack_v1(eval_env, 3)
@@ -52,14 +68,14 @@ if __name__ == "__main__":
     eval_env = VecMonitor(eval_env)
 
     eval_freq = int(train_timesteps / n_evaluations)
-    eval_freq = 100000  # max(eval_freq // (n_envs*n_agents), 1)
+    eval_freq = max(eval_freq // (n_envs*n_agents), 1)
 
     # TODO: replace with custom policy
     model = PPO(
         #CustomActorCriticPolicy,
         "MlpPolicy",
         env,
-        verbose=3,
+        verbose=0,
         gamma=0.90,
         n_steps=256,
         ent_coef=0.0905168,
@@ -70,6 +86,7 @@ if __name__ == "__main__":
         n_epochs=5,
         clip_range=0.25,
         batch_size=256,
+        tensorboard_log="/tmp/SB3/",
     )
     eval_callback = EvalCallback(
         eval_env,
@@ -79,7 +96,51 @@ if __name__ == "__main__":
         deterministic=True,
         render=False,
     )
-    model.learn(total_timesteps=train_timesteps, callback=eval_callback)
+    
+    
+    from stable_baselines3 import SAC
+    from stable_baselines3.common.callbacks import BaseCallback
+
+    class TensorboardCallback(BaseCallback):
+        """
+        Custom callback for plotting additional values in tensorboard.
+        """
+
+        def __init__(self, verbose=0):
+            super(TensorboardCallback, self).__init__(verbose)
+            self.raw_envs = env.unwrapped.vec_envs
+            self.envs = []
+            for i in range(len(self.raw_envs)):
+                self.envs.append(self.raw_envs[i].par_env.aec_env.env.env.env)
+                
+            #self.metric_names = list(self.envs[0].metrics[-1].keys())
+            self.iter = 0
+            
+            
+        def find_and_record(self, name):
+            wait_times = [env.metrics[-1][name] for env in self.envs]
+            wait_time_names = [name + '/' + str(i) for i in range(len(self.envs))]
+            for i, name in enumerate(wait_time_names):
+                item = wait_times[i]
+                if type(item) == list:
+                    item = sum(item)
+                self.logger.record(name, item)
+            
+
+        def _on_step(self) -> bool:
+            # Log scalar value (here a random variable)
+            if len(self.envs[0].metrics) != 0:
+                for item in list(self.envs[0].metrics[-1].keys())[2:]:
+                    self.find_and_record(item)
+            else:
+                self.iter += 1
+
+            #if self.num_timesteps % 70 == 0:
+            #    self.logger.dump(self.num_timesteps + self.iter*train_timesteps)
+            return True
+    
+    
+    model.learn(total_timesteps=train_timesteps, callback=TensorboardCallback(0))# callback=eval_callback)
     # save a learned model
     save_path = "outputs/" + cfg.get("model_name")
     model.save(save_path)
