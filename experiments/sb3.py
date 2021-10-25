@@ -23,11 +23,12 @@ if __name__ == "__main__":
 
     sumo_tstep = 7
     n_evaluations = 20
-    num_cpus = int(psutil.cpu_count() - 1)
+    num_cpus = 3#int(psutil.cpu_count() - 1)
     # You can not use LIBSUMO if using more than one env
-    n_envs = int(num_cpus - 4)
+    n_envs = 3#int(num_cpus - 4)
     train_timesteps = int(1e5)
     eval_timesteps = int(1e3)
+    n_agents = 1
 
     env = sumo_rl.parallel_env(
         net_file="nets/big-intersection/big-intersection.net.xml",
@@ -76,7 +77,8 @@ if __name__ == "__main__":
 
     # TODO: replace with custom policy_kwargs
     model = PPO(
-        CustomActorCriticPolicy,
+        "MlpPolicy",
+        #CustomActorCriticPolicy,
         env,
         verbose=0,
         gamma=0.99,
@@ -113,13 +115,13 @@ if __name__ == "__main__":
 
         def __init__(self, verbose=0):
             super(TensorboardCallback, self).__init__(verbose)
-            self.raw_envs = env.unwrapped.vec_envs
-            self.envs = []
-            for i in range(len(self.raw_envs)):
-                self.envs.append(self.raw_envs[i].par_env.aec_env.env.env.env)
+            # self.raw_envs = env.unwrapped.vec_envs
+            # self.envs = []
+            # for i in range(len(self.raw_envs)):
+            #     self.envs.append(self.raw_envs[i].par_env.aec_env.env.env.env)
                 
-            #self.metric_names = list(self.envs[0].metrics[-1].keys())
-            self.iter = 0
+            # #self.metric_names = list(self.envs[0].metrics[-1].keys())
+            # self.iter = 0
             
             
         def find_and_record(self, name):
@@ -133,12 +135,13 @@ if __name__ == "__main__":
             
 
         def _on_step(self) -> bool:
+
             # Log scalar value (here a random variable)
-            if len(self.envs[0].metrics) != 0:
-                for item in list(self.envs[0].metrics[-1].keys())[2:]:
-                    self.find_and_record(item)
-            else:
-                self.iter += 1
+            # if len(self.envs[0].metrics) != 0:
+            #     for item in list(self.envs[0].metrics[-1].keys())[2:]:
+            #         self.find_and_record(item)
+            # else:
+            #     self.iter += 1
 
             #if self.num_timesteps % 70 == 0:
             #    self.logger.dump(self.num_timesteps + self.iter*train_timesteps)

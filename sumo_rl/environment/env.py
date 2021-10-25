@@ -21,8 +21,11 @@ from pettingzoo.utils.agent_selector import agent_selector
 from pettingzoo import AECEnv
 from pettingzoo.utils import agent_selector, wrappers
 from pettingzoo.utils.conversions import parallel_wrapper_fn
+from pathlib import Path
 
 LIBSUMO = 'LIBSUMO_AS_TRACI' in os.environ
+
+from torch.utils.tensorboard import SummaryWriter
 
 
 def env(**kwargs):
@@ -53,7 +56,8 @@ class SumoEnvironment:
     :fixed_ts: (bool) If true, it will follow the phase configuration in the route_file and ignore the actions.
     """
     CONNECTION_LABEL = 0  # For traci multi-client support
-
+    tb_writer = SummaryWriter(str(Path.cwd() / "Sumo") + str(CONNECTION_LABEL))
+    
     def __init__(self, net_file, route_file, out_csv_name=None, use_gui=False, begin_time=0, num_seconds=20000, max_depart_delay=100000,
                  time_to_teleport=-1, delta_time=5, yellow_time=2, min_green=5, max_green=50, single_agent=False, sumo_seed='random', fixed_ts=False):
         self._net = net_file
@@ -353,6 +357,12 @@ class SumoEnvironmentPZ(AECEnv, EzPickle):
             self.env._compute_observations()
             self.rewards = self.env._compute_rewards()
             self.env._compute_info()
+            self.infos = {"TL": {"episode": {1} }}
+            #self.infos = self.rewards
+            #self.infos['TL'] = {1}
+            #self.infos = {1}
+            #self.tensorboard_logger()
+            
         else:
             self._clear_rewards()
         
@@ -362,3 +372,28 @@ class SumoEnvironmentPZ(AECEnv, EzPickle):
         self.agent_selection = self._agent_selector.next()
         self._cumulative_rewards[agent] = 0
         self._accumulate_rewards()
+        
+        
+    def tensorboard_logger(self):
+
+        worker_number = self.env.label
+        run_number = self.env.run
+        
+        max_sumo_timestep = self.env.sim_max_time
+        current_timestep = self.env.sim_step
+        
+        total_sumo_timestep = current_timestep + run_number*max_sumo_timestep
+        last_info = self.env.metrics[-1]
+        
+        log_metric_names = list(last_info.keys())[1:]
+
+        for key, val in last_info.items():
+            #key += "/" + str(worker_number)
+            if type(val) is list or type(val) is np.ndarray:
+                val = np.mean(val)
+            self.env.tb_writer.add_scalar(key, val, current_timestep)
+            #print("added")
+
+        
+            
+        
