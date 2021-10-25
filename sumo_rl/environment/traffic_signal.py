@@ -39,6 +39,7 @@ class TrafficSignal:
         self.next_action_time = begin_time
         self.last_measure = 0.0
         self.last_flow = 0.0
+        self.last_pressure = 0.0
         self.last_reward = None
         self.sumo = sumo
 
@@ -130,10 +131,15 @@ class TrafficSignal:
         return observation
 
     def compute_reward(self):
-        self.last_reward = self._waiting_time_reward()
-        #self.last_reward = self.flow_reward()
-        #print(f"Last reward: {self.last_reward}")
-        return self.last_reward
+        curr_pressure = -self.get_pressure()
+        d_pressure = curr_pressure - self.last_pressure
+        self.last_pressure = curr_pressure
+        r_pressure = d_pressure / 1e3
+        r_flow = self.flow_reward()
+        r_wait = self._waiting_time_reward() / 20
+        # for r_wait, signs already handled in function
+        reward = -5 * r_pressure + 2 * r_wait + r_flow
+        return reward
 
     def flow_reward(self):
         curr_flow = self._current_flow()
