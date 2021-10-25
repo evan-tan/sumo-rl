@@ -11,23 +11,24 @@ class TrafficGenerator:
         """
         Generation of the route of every car for one episode
         """
-        np.random.seed(seed)  # make tests reproducible
+        # np.random.seed(seed)  # make tests reproducible
 
-        # the generation of cars is distributed according to a weibull distribution
-        timings = np.random.weibull(2, self._n_cars_generated)
-        timings = np.sort(timings)
+        # # the generation of cars is distributed according to a weibull distribution
+        # timings = np.random.weibull(2, self._n_cars_generated)
+        # timings = np.sort(timings)
 
-        # reshape the distribution to fit the interval 0:max_steps
-        car_gen_steps = []
-        min_old = math.floor(timings[1])
-        max_old = math.ceil(timings[-1])
-        min_new = 0
-        max_new = self._max_steps
-        for value in timings:
-            car_gen_steps = np.append(car_gen_steps, ((max_new - min_new) / (max_old - min_old)) * (value - max_old) + max_new)
-
+        # # reshape the distribution to fit the interval 0:max_steps
+        # car_gen_steps = []
+        # min_old = math.floor(timings[1])
+        # max_old = math.ceil(timings[-1])
+        # min_new = 0
+        # max_new = self._max_steps
+        # for value in timings:
+        #     car_gen_steps = np.append(car_gen_steps, ((max_new - min_new) / (max_old - min_old)) * (value - max_old) + max_new)
+        
+        car_gen_steps = np.linspace(0, self._max_steps, self._n_cars_generated)
         car_gen_steps = np.rint(car_gen_steps)  # round every value to int -> effective steps when a car will be generated
-
+        
         # produce the file for cars generation, one car per line
         with open("routes.rou.xml", "w") as routes:
             print("""<routes>
@@ -78,4 +79,4 @@ class TrafficGenerator:
 
             print("</routes>", file=routes)
 
-TrafficGenerator(40000, 10000).generate_routefile(0)
+TrafficGenerator(200000, 130000).generate_routefile(0)
