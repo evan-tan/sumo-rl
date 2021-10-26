@@ -170,8 +170,8 @@ class TrafficSignal:
         """ Compute urgency across all lanes """
         # urgency metric
         max_speed = 13.89
-        queue = np.array(self.get_lanes_queue)
-        density = np.array(self.get_lanes_density)
+        queue = np.array(self.get_lanes_queue())
+        density = np.array(self.get_lanes_density())
         # elem wise multiplication
         urgency = queue * density 
         # range [-0.5, 0.5] -> [-1, 1]
