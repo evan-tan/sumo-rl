@@ -248,19 +248,17 @@ class SumoEnvironment:
         vehicle_number_per_lane = self.traffic_signals[self.ts_ids[0]].get_vehicle_number()
         travel_time_per_lane = self.traffic_signals[self.ts_ids[0]].get_travel_time()
         
-        
-        
         return {
 
             'step_time': self.sim_step,
             'reward': self.traffic_signals[self.ts_ids[0]].last_reward,
-            'flow_diff_reward': self.traffic_signals[self.ts_ids[0]].flow_reward(),
+            'flow_diff_reward': self.traffic_signals[self.ts_ids[0]].flow_rew,
             'queue_average_diff_reward': self.traffic_signals[self.ts_ids[0]]._queue_average_reward(),
             'queue_reward': self.traffic_signals[self.ts_ids[0]]._queue_reward(),
-            'waiting_time_diff_reward': self.traffic_signals[self.ts_ids[0]]._waiting_time_reward(),
-            'waiting_time_diff_reward2': self.traffic_signals[self.ts_ids[0]]._waiting_time_reward2(),
-            'waiting_time_diff_reward3': self.traffic_signals[self.ts_ids[0]]._waiting_time_reward3(),
-            'pressure_diff_reward': self.traffic_signals[self.ts_ids[0]]._pressure_reward(),
+            'waiting_time_diff_reward': self.traffic_signals[self.ts_ids[0]].wait_reward,
+            # 'waiting_time_diff_reward2': self.traffic_signals[self.ts_ids[0]]._waiting_time_reward2(),
+            # 'waiting_time_diff_reward3': self.traffic_signals[self.ts_ids[0]]._waiting_time_reward3(),
+            'pressure_diff_reward': self.traffic_signals[self.ts_ids[0]].press_reward,
             
             'average_speed (flow)': self.traffic_signals[self.ts_ids[0]]._current_flow(),
             'pressure': self.traffic_signals[self.ts_ids[0]].get_pressure(),

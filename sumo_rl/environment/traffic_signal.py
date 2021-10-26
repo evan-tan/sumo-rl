@@ -9,7 +9,7 @@ else:
 import numpy as np
 import traci
 from gym import spaces
-
+from collections import deque
 
 class TrafficSignal:
     """
@@ -42,7 +42,17 @@ class TrafficSignal:
         self.last_pressure = 0.0
         self.last_reward = None
         self.sumo = sumo
-
+        
+        self.press_reward = 0
+        self.flow_rew = 0
+        self.wait_reward = 0
+        self._vehicle_size_min_gap = 7.5  # 5(vehSize) + 2.5(minGap)
+        self._max_capacity = 100 # number of cars
+        num_steps = 20
+        # urgency reward queue
+        self._urq = deque(maxlen=num_steps)
+        self._wait_x = deque(maxlen=num_steps)
+        self._wait_10x = deque(maxlen=num_steps*10)
         self.build_phases()
 
         self.lanes = list(dict.fromkeys(self.sumo.trafficlight.getControlledLanes(self.id)))  # Remove duplicates and keep order
@@ -131,13 +141,44 @@ class TrafficSignal:
         return observation
 
     def compute_reward(self):
-        d_pressure = self._pressure_reward()
-        r_pressure = d_pressure / 1e3
-        r_flow = self.flow_reward()
-        r_wait = self._waiting_time_reward() / 20
-        # for r_wait, signs already handled in function
-        reward = 5 * r_pressure + 2 * r_wait + r_flow
-        return reward
+        # d_pressure = self._pressure_reward()
+        # r_pressure = d_pressure / 1e3
+        # r_flow = self.flow_reward()
+        # r_wait = self._waiting_time_reward()
+        # # for r_wait, signs already handled in function
+        # reward = 5 * r_pressure + 2 * (r_wait/20) + r_flow
+        
+        
+        # self.press_reward = d_pressure
+        # self.flow_rew = r_flow
+        # self.wait_reward = r_wait
+        
+        # urgency reward
+        urgency_reward = self._compute_urgency_reward()
+        
+        # avg waiting time running total
+        # wait_time, num_vehicles = self.get_waiting_time_per_lane()
+        # acc_waiting_time = (sum(wait_time)/100) / num_vehicles
+        # self._wait_x.append(acc_waiting_time)
+        # self._wait_10x.append(acc_waiting_time)
+        # wait_reward = -(np.mean(self._wait_x) - np.mean(self._wait_10x))
+        
+        
+        return urgency_reward
+    
+    def _compute_urgency_reward(self):
+        """ Compute urgency across all lanes """
+        # urgency metric
+        max_speed = 13.89
+        queue = np.array(self.get_lanes_queue)
+        density = np.array(self.get_lanes_density)
+        # elem wise multiplication
+        urgency = queue * density 
+        # range [-0.5, 0.5] -> [-1, 1]
+        avg_speed = np.array(self.get_mean_speed())
+        throughput = (avg_speed / max_speed - 0.5) * 2
+        return (urgency * throughput).sum()
+        
 
     def flow_reward(self):
         curr_flow = self._current_flow()
@@ -176,13 +217,15 @@ class TrafficSignal:
         return - (sum(self.get_total_halted()))**2
 
     def _waiting_time_reward(self):
-        ts_wait = sum(self.get_waiting_time_per_lane()) / 100.0
+        wait_time, _ = self.get_waiting_time_per_lane()
+        ts_wait = sum(wait_time) / self._max_capacity
         reward = self.last_measure - ts_wait
         self.last_measure = ts_wait
         return reward
 
     def _waiting_time_reward2(self):
-        ts_wait = sum(self.get_waiting_time_per_lane())
+        wait_time, _ = self.get_waiting_time_per_lane()
+        ts_wait = sum(wait_time)
         self.last_measure = ts_wait
         if ts_wait == 0:
             reward = 1.0
@@ -191,16 +234,19 @@ class TrafficSignal:
         return reward
 
     def _waiting_time_reward3(self):
-        ts_wait = sum(self.get_waiting_time_per_lane())
+        wait_time, _ = self.get_waiting_time_per_lane()
+        ts_wait = sum(wait_time)
         reward = -ts_wait
         self.last_measure = ts_wait
         return reward
 
     def get_waiting_time_per_lane(self):
         wait_time_per_lane = []
+        num_vehicles = 0
         for lane in self.lanes:
             veh_list = self.sumo.lane.getLastStepVehicleIDs(lane)
             wait_time = 0.0
+            num_vehicles += len(veh_list)
             for veh in veh_list:
                 veh_lane = self.sumo.vehicle.getLaneID(veh)
                 acc = self.sumo.vehicle.getAccumulatedWaitingTime(veh)
@@ -210,23 +256,20 @@ class TrafficSignal:
                     self.env.vehicles[veh][veh_lane] = acc - sum([self.env.vehicles[veh][lane] for lane in self.env.vehicles[veh].keys() if lane != veh_lane])
                 wait_time += self.env.vehicles[veh][veh_lane]
             wait_time_per_lane.append(wait_time)
-        return wait_time_per_lane
+        return wait_time_per_lane, num_vehicles
 
     def get_pressure(self):
         return abs(sum(self.sumo.lane.getLastStepVehicleNumber(lane) for lane in self.lanes) - sum(self.sumo.lane.getLastStepVehicleNumber(lane) for lane in self.out_lanes))
 
 #####
     def get_out_lanes_density(self):
-        vehicle_size_min_gap = 7.5  # 5(vehSize) + 2.5(minGap)
-        return [min(1, self.sumo.lane.getLastStepVehicleNumber(lane) / (self.sumo.lane.getLength(lane) / vehicle_size_min_gap)) for lane in self.out_lanes]
+        return [min(1, self.sumo.lane.getLastStepVehicleNumber(lane) / (self.sumo.lane.getLength(lane) / self._vehicle_size_min_gap)) for lane in self.out_lanes]
 
     def get_lanes_density(self):
-        vehicle_size_min_gap = 7.5  # 5(vehSize) + 2.5(minGap)
-        return [min(1, self.sumo.lane.getLastStepVehicleNumber(lane) / (self.lanes_lenght[lane] / vehicle_size_min_gap)) for lane in self.lanes]
+        return [min(1, self.sumo.lane.getLastStepVehicleNumber(lane) / (self.lanes_lenght[lane] / self._vehicle_size_min_gap)) for lane in self.lanes]
 
     def get_lanes_queue(self):
-        vehicle_size_min_gap = 7.5  # 5(vehSize) + 2.5(minGap)
-        return [min(1, self.sumo.lane.getLastStepHaltingNumber(lane) / (self.lanes_lenght[lane] / vehicle_size_min_gap)) for lane in self.lanes]
+        return [min(1, self.sumo.lane.getLastStepHaltingNumber(lane) / (self.lanes_lenght[lane] / self._vehicle_size_min_gap)) for lane in self.lanes]
 
     def _get_veh_list(self):
         veh_list = []
