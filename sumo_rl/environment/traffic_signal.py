@@ -131,21 +131,19 @@ class TrafficSignal:
         return observation
 
     def compute_reward(self):
-        curr_pressure = -self.get_pressure()
-        d_pressure = curr_pressure - self.last_pressure
-        self.last_pressure = curr_pressure
+        d_pressure = self._pressure_reward()
         r_pressure = d_pressure / 1e3
         r_flow = self.flow_reward()
         r_wait = self._waiting_time_reward() / 20
         # for r_wait, signs already handled in function
-        reward = -5 * r_pressure + 2 * r_wait + r_flow
+        reward = 5 * r_pressure + 2 * r_wait + r_flow
         return reward
 
     def flow_reward(self):
         curr_flow = self._current_flow()
         d_flow = curr_flow - self.last_flow
         self.last_flow = curr_flow
-        print(f"Delta Flow: {d_flow}")
+        #print(f"Delta Flow: {d_flow}")
         return d_flow
 
     def _current_flow(self):
@@ -163,16 +161,19 @@ class TrafficSignal:
         return flow
 
     def _pressure_reward(self):
-        return -self.get_pressure()
+        curr_pressure = -self.get_pressure()
+        d_pressure = curr_pressure - self.last_pressure
+        self.last_pressure = curr_pressure
+        return d_pressure
 
     def _queue_average_reward(self):
-        new_average = np.mean(self.get_stopped_vehicles_num())
+        new_average = np.mean(self.get_total_halted())
         reward = self.last_measure - new_average
         self.last_measure = new_average
         return reward
 
     def _queue_reward(self):
-        return - (sum(self.get_stopped_vehicles_num()))**2
+        return - (sum(self.get_total_halted()))**2
 
     def _waiting_time_reward(self):
         ts_wait = sum(self.get_waiting_time_per_lane()) / 100.0
@@ -181,7 +182,7 @@ class TrafficSignal:
         return reward
 
     def _waiting_time_reward2(self):
-        ts_wait = sum(self.get_waiting_time())
+        ts_wait = sum(self.get_waiting_time_per_lane())
         self.last_measure = ts_wait
         if ts_wait == 0:
             reward = 1.0
@@ -190,7 +191,7 @@ class TrafficSignal:
         return reward
 
     def _waiting_time_reward3(self):
-        ts_wait = sum(self.get_waiting_time())
+        ts_wait = sum(self.get_waiting_time_per_lane())
         reward = -ts_wait
         self.last_measure = ts_wait
         return reward
@@ -214,6 +215,7 @@ class TrafficSignal:
     def get_pressure(self):
         return abs(sum(self.sumo.lane.getLastStepVehicleNumber(lane) for lane in self.lanes) - sum(self.sumo.lane.getLastStepVehicleNumber(lane) for lane in self.out_lanes))
 
+#####
     def get_out_lanes_density(self):
         vehicle_size_min_gap = 7.5  # 5(vehSize) + 2.5(minGap)
         return [min(1, self.sumo.lane.getLastStepVehicleNumber(lane) / (self.sumo.lane.getLength(lane) / vehicle_size_min_gap)) for lane in self.out_lanes]
@@ -226,11 +228,25 @@ class TrafficSignal:
         vehicle_size_min_gap = 7.5  # 5(vehSize) + 2.5(minGap)
         return [min(1, self.sumo.lane.getLastStepHaltingNumber(lane) / (self.lanes_lenght[lane] / vehicle_size_min_gap)) for lane in self.lanes]
 
-    def get_total_queued(self):
-        return sum([self.sumo.lane.getLastStepHaltingNumber(lane) for lane in self.lanes])
-
     def _get_veh_list(self):
         veh_list = []
         for lane in self.lanes:
             veh_list += self.sumo.lane.getLastStepVehicleIDs(lane)
         return veh_list
+    
+#######
+
+    def get_total_halted(self):
+        return [self.sumo.lane.getLastStepHaltingNumber(lane) for lane in self.lanes]
+
+    def get_mean_speed(self):
+        return [self.sumo.lane.getLastStepMeanSpeed(lane) for lane in self.lanes]
+
+    def get_occupancy(self):
+        return [self.sumo.lane.getLastStepOccupancy(lane) for lane in self.lanes]
+    
+    def get_vehicle_number(self):
+        return [self.sumo.lane.getLastStepVehicleNumber(lane) for lane in self.lanes]
+
+    def get_travel_time(self):
+        return [self.sumo.lane.getTraveltime(lane) for lane in self.lanes]

@@ -56,7 +56,6 @@ class SumoEnvironment:
     :fixed_ts: (bool) If true, it will follow the phase configuration in the route_file and ignore the actions.
     """
     CONNECTION_LABEL = 0  # For traci multi-client support
-    tb_writer = SummaryWriter(str(Path.cwd() / "Sumo") + str(CONNECTION_LABEL))
     
     def __init__(self, net_file, route_file, out_csv_name=None, use_gui=False, begin_time=0, num_seconds=20000, max_depart_delay=100000,
                  time_to_teleport=-1, delta_time=5, yellow_time=2, min_green=5, max_green=50, single_agent=False, sumo_seed='random', fixed_ts=False):
@@ -243,19 +242,47 @@ class SumoEnvironment:
         self.sumo.simulationStep()
 
     def _compute_step_info(self):
+        total_halted_per_lane = self.traffic_signals[self.ts_ids[0]].get_total_halted()
+        mean_speed_per_lane = self.traffic_signals[self.ts_ids[0]].get_mean_speed()
+        occupancy_per_lane = self.traffic_signals[self.ts_ids[0]].get_occupancy()
+        vehicle_number_per_lane = self.traffic_signals[self.ts_ids[0]].get_vehicle_number()
+        travel_time_per_lane = self.traffic_signals[self.ts_ids[0]].get_travel_time()
+        
+        
+        
         return {
+
             'step_time': self.sim_step,
             'reward': self.traffic_signals[self.ts_ids[0]].last_reward,
-            #'waiting_time_reward': self.traffic_signals[self.ts_ids[0]]._waiting_time_reward(),
-            'total_stopped': sum(self.traffic_signals[ts].get_total_queued() for ts in self.ts_ids),
-            'total_wait_time': sum(sum(self.traffic_signals[ts].get_waiting_time_per_lane()) for ts in self.ts_ids),
-            'wait_time_per_lane': [self.traffic_signals[self.ts_ids[0]].get_waiting_time_per_lane()][0],
+            'flow_diff_reward': self.traffic_signals[self.ts_ids[0]].flow_reward(),
+            'queue_average_diff_reward': self.traffic_signals[self.ts_ids[0]]._queue_average_reward(),
+            'queue_reward': self.traffic_signals[self.ts_ids[0]]._queue_reward(),
+            'waiting_time_diff_reward': self.traffic_signals[self.ts_ids[0]]._waiting_time_reward(),
+            'waiting_time_diff_reward2': self.traffic_signals[self.ts_ids[0]]._waiting_time_reward2(),
+            'waiting_time_diff_reward3': self.traffic_signals[self.ts_ids[0]]._waiting_time_reward3(),
+            'pressure_diff_reward': self.traffic_signals[self.ts_ids[0]]._pressure_reward(),
+            
             'average_speed (flow)': self.traffic_signals[self.ts_ids[0]]._current_flow(),
             'pressure': self.traffic_signals[self.ts_ids[0]].get_pressure(),
-            'lanes_out_density': self.traffic_signals[self.ts_ids[0]].get_out_lanes_density(),
-            'lanes_density': self.traffic_signals[self.ts_ids[0]].get_lanes_density(),
-            'lanes_queue': self.traffic_signals[self.ts_ids[0]].get_lanes_queue(),
-            'total_queued': self.traffic_signals[self.ts_ids[0]].get_total_queued(),
+            
+            'total_halted_per_lane': total_halted_per_lane,
+            'mean_speed_per_lane': mean_speed_per_lane,
+            'occupancy_per_lane': occupancy_per_lane,
+            'vehicle_number_per_lane': vehicle_number_per_lane,
+            'travel_time_per_lane': travel_time_per_lane,
+            
+            # 'sum_total_halted_per_lane': sum(total_halted_per_lane),
+            # 'sum_mean_speed_per_lane': sum(mean_speed_per_lane),
+            # 'sum_occupancy_per_lane': sum(occupancy_per_lane),
+            # 'sum_vehicle_number_per_lane': sum(vehicle_number_per_lane),
+            # 'sum_travel_time_per_lane': sum(travel_time_per_lane),
+            
+            'wait_time_per_lane_per_lane': self.traffic_signals[self.ts_ids[0]].get_waiting_time_per_lane(),
+            'lanes_out_density_per_lane': self.traffic_signals[self.ts_ids[0]].get_out_lanes_density(),
+            'lanes_density_per_lane': self.traffic_signals[self.ts_ids[0]].get_lanes_density(),
+            'lanes_queue_per_lane': self.traffic_signals[self.ts_ids[0]].get_lanes_queue(),
+        
+            
         }
 
     def close(self):
@@ -313,6 +340,8 @@ class SumoEnvironmentPZ(AECEnv, EzPickle):
         self.rewards = {a: 0 for a in self.agents}
         self.dones = {a: False for a in self.agents}
         self.infos = {a: {} for a in self.agents}
+        
+        #self.tb_writer = SummaryWriter(str(Path.cwd() / "Sumo") + str(self.env.label))
 
     def seed(self, seed=None):
         self.randomizer, seed = seeding.np_random(seed)
@@ -357,11 +386,12 @@ class SumoEnvironmentPZ(AECEnv, EzPickle):
             self.env._compute_observations()
             self.rewards = self.env._compute_rewards()
             self.env._compute_info()
-            self.infos = {"TL": {"episode": {1} }}
+            self.infos = {"TL": self.env.metrics[-1]}
             #self.infos = self.rewards
             #self.infos['TL'] = {1}
             #self.infos = {1}
-            #self.tensorboard_logger()
+            #if self.env.label == 2:
+            #    self.tensorboard_logger()
             
         else:
             self._clear_rewards()
@@ -389,10 +419,12 @@ class SumoEnvironmentPZ(AECEnv, EzPickle):
 
         for key, val in last_info.items():
             #key += "/" + str(worker_number)
-            if type(val) is list or type(val) is np.ndarray:
-                val = np.mean(val)
-            self.env.tb_writer.add_scalar(key, val, current_timestep)
-            #print("added")
+            if val is not None:
+                if type(val) is list:
+                    val = np.mean(val)
+                
+                self.tb_writer.add_scalar(key, val, current_timestep)
+                #print("added")
 
         
             
