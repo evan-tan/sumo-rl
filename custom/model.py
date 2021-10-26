@@ -69,6 +69,12 @@ class CustomNetwork(nn.Module):
             nn.Tanh(),
         )
 
+    def forward_actor(self, features):
+        return self.policy_net(features)
+
+    def forward_critic(self, features):
+        return self.value_net(features)
+
     def forward(self, features: T.Tensor) -> Tuple[T.Tensor, T.Tensor]:
         """
         :return: (th.Tensor, th.Tensor) latent_policy, latent_value of the specified network.

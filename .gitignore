@@ -1,3 +1,5 @@
+*tfevents*
+/outputs/
 /ray_results/
 *conn*.csv
 
