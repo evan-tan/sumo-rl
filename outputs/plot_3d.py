@@ -38,14 +38,29 @@ def smooth_data(scalars: List[float], weight: float) -> List[float]:
 
     return smoothed
 
+
+def get_iqr_values(df_in, col_name):
+    median = df_in[col_name].median()
+    q1 = df_in[col_name].quantile(0.5) # 25th percentile / 1st quartile
+    q3 = df_in[col_name].quantile(0.95) # 7th percentile / 3rd quartile
+    iqr = q3-q1 #Interquartile range
+    minimum  = q1-1.5*iqr # The minimum value or the |- marker in the box plot
+    maximum = q3+1.5*iqr # The maximum value or the -| marker in the box plot
+    return minimum, maximum
+
 def plot_info(combined, cat):
     names = combined[0].columns.tolist()
-    names = [name for name in names if type(name) == str]
+    names = [name for name in names if type(name) == str][1:]
 
+    test = combined[0]["step_time"].to_list()
+    run_starts = [i for i in range(len(test)-1) if test[i+1] < test[i]]
 
     fig, axs = plt.subplots(3,4,figsize=(9, 9))
     axs = np.ndarray.flatten(axs).tolist()
     fig.delaxes(axs[-1])
+    fig.delaxes(axs[-2])
+    
+    test = pd.concat(combined)
 
     for i, ax in enumerate(axs[:len(names)]):
         for data in combined:
@@ -54,9 +69,24 @@ def plot_info(combined, cat):
             
         for data in combined:
             y = data[names[i]].to_numpy()
-            ax.plot(smooth_data(y, 0.99), alpha=0.8)
+            ax.plot(smooth_data(y, 0.99), alpha=0.7)
             
-        ax.title.set_text(names[i].replace("_"," ").title())  
+        if len(run_starts) > 0:
+            for x in run_starts:
+                ax.axvline(x=x, alpha=0.5)
+            
+        ax.title.set_text(names[i].replace("_"," ").title())
+        
+        #ymin, ymax = get_iqr_values(test, names[i])
+        #ymax = ymax*1.2
+        #if ymin < test[names[i]].to_numpy().min():
+        #    ymin = test[names[i]].to_numpy().min()
+        #if ymin < 0:
+        #    ymin = ymin*1.2
+        #else:
+        #    ymin = ymin*0.8
+              
+        #ax.set_ylim([ymin, ymax])
 
     fig.suptitle(cat.title(), fontsize=20) 
     fig.tight_layout()
@@ -75,7 +105,6 @@ def process_data(folder_path, run_type):
     files = files[files[4] == run_type]
 
     dfs = [pd.read_csv(file_) for file_ in files[0].tolist()]
-
 
     names = dfs[0].dtypes[dfs[0].dtypes == object].index.to_list()
 
@@ -109,6 +138,9 @@ combined = process_data(folder_path, run_type)
 test = pd.concat(combined)
 pair_res = test.groupby([6,5]).agg(['mean']).reset_index()
 run_res = test.groupby([6]).agg(['mean']).reset_index()
+
+pair_res.to_csv(folder_path + "pair_results.csv", encoding='utf-8', index=False)
+run_res.to_csv(folder_path + "per_run_results.csv", encoding='utf-8', index=False)
 
 
 plot_info(combined, run_type)
