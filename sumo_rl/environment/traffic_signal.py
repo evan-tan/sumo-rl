@@ -145,7 +145,6 @@ class TrafficSignal:
         curr_flow = self._current_flow()
         d_flow = curr_flow - self.last_flow
         self.last_flow = curr_flow
-        print(f"Delta Flow: {d_flow}")
         return d_flow
 
     def _current_flow(self):
