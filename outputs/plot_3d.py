@@ -55,7 +55,7 @@ def plot_info(combined, cat):
     test = combined[0]["step_time"].to_list()
     run_starts = [i for i in range(len(test)-1) if test[i+1] < test[i]]
 
-    fig, axs = plt.subplots(3,4,figsize=(9, 9))
+    fig, axs = plt.subplots(4,5,figsize=(9, 9))
     axs = np.ndarray.flatten(axs).tolist()
     fig.delaxes(axs[-1])
     fig.delaxes(axs[-2])
@@ -100,11 +100,12 @@ def process_data(folder_path, run_type):
     files = pd.concat([files, files[0].str.split("/|\\.|\\_", expand=True).iloc[:,4:(len(files.columns)+4+2)]], axis=1)
     files = files.sort_values([4, 5, 6], ascending=[False, True, True])
 
-
-
     files = files[files[4] == run_type]
 
     dfs = [pd.read_csv(file_) for file_ in files[0].tolist()]
+    
+    for i in range(len(dfs)):
+        dfs[i] = dfs[i].iloc[:12000,:]
 
     names = dfs[0].dtypes[dfs[0].dtypes == object].index.to_list()
 

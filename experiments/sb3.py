@@ -23,7 +23,7 @@ if __name__ == "__main__":
 
     sumo_tstep = 7
     n_evaluations = 20
-    num_cpus = 3#int(psutil.cpu_count() - 1)
+    num_cpus = int(psutil.cpu_count() - 1)
     # You can not use LIBSUMO if using more than one env
     n_envs = 3#int(num_cpus - 4)
     train_timesteps = int(1e5)
@@ -77,8 +77,7 @@ if __name__ == "__main__":
 
     # TODO: replace with custom policy_kwargs
     model = PPO(
-        "MlpPolicy",
-        #CustomActorCriticPolicy,
+        CustomActorCriticPolicy,
         env,
         verbose=0,
         gamma=0.99,
@@ -107,6 +106,8 @@ if __name__ == "__main__":
     
     from stable_baselines3 import SAC
     from stable_baselines3.common.callbacks import BaseCallback
+    
+    from torch.utils.tensorboard import SummaryWriter
 
     class TensorboardCallback(BaseCallback):
         """
@@ -115,13 +116,14 @@ if __name__ == "__main__":
 
         def __init__(self, verbose=0):
             super(TensorboardCallback, self).__init__(verbose)
-            # self.raw_envs = env.unwrapped.vec_envs
-            # self.envs = []
-            # for i in range(len(self.raw_envs)):
-            #     self.envs.append(self.raw_envs[i].par_env.aec_env.env.env.env)
+            self.raw_envs = eval_env.unwrapped.vec_envs
+            self.envs = []
+            for i in range(len(self.raw_envs)):
+                self.envs.append(self.raw_envs[i].par_env.aec_env.env.env.env)
                 
-            # #self.metric_names = list(self.envs[0].metrics[-1].keys())
-            # self.iter = 0
+            self.tb_writer = SummaryWriter(str("./Sumo"))
+            #self.metric_names = list(self.envs[0].metrics[-1].keys())
+            self.iter = 0
             
             
         def find_and_record(self, name):
@@ -136,19 +138,45 @@ if __name__ == "__main__":
 
         def _on_step(self) -> bool:
 
-            # Log scalar value (here a random variable)
-            # if len(self.envs[0].metrics) != 0:
-            #     for item in list(self.envs[0].metrics[-1].keys())[2:]:
-            #         self.find_and_record(item)
-            # else:
-            #     self.iter += 1
+            #Log scalar value (here a random variable)
 
-            #if self.num_timesteps % 70 == 0:
-            #    self.logger.dump(self.num_timesteps + self.iter*train_timesteps)
             return True
+        
+        def __call__(self, a, b):
+            metrics = a['infos'][0]
+            
+            #if len(metrics) != 0:
+            #    for item in list(metrics.keys())[2:]:
+            #        self.find_and_record(item)
+            #else:
+            #    self.iter += 1
+
+            #self.logger.dump(self.num_timesteps + self.iter*eval_timesteps)
+            
+            #worker_number = self.env.label
+            run_number = 1
+            
+            max_sumo_timestep = eval_timesteps# self.env.sim_max_time
+            current_timestep = self.num_timesteps
+            
+            total_sumo_timestep = current_timestep + run_number*max_sumo_timestep
+            #last_info = self.env.metrics[-1]
+            
+            log_metric_names = list(metrics.keys())[1:]
+
+            for key, val in metrics.items():
+                #key += "/" + str(worker_number)
+                if type(val) is list or type(val) is np.ndarray:
+                    val = np.mean(val)
+                self.tb_writer.add_scalar(key, val, current_timestep)
+            #print("added")
+            
+            print("tru")
+        
+        
     
     
-    model.learn(total_timesteps=train_timesteps, callback=TensorboardCallback(0))# callback=eval_callback)
+    model.learn(total_timesteps=train_timesteps)#, callback=TensorboardCallback(0))# callback=eval_callback)
     # save a learned model
     save_path = "outputs/" + cfg.get("model_name")
     model.save(save_path)
@@ -171,7 +199,7 @@ if __name__ == "__main__":
     model = PPO.load(model_path)
 
     mean_reward, std_reward = evaluate_policy(
-        model, eval_env, n_eval_episodes=10
+        model, eval_env, n_eval_episodes=10, callback=TensorboardCallback(0)
     )
 
     print(f"Reward Mean = {mean_reward:.3f}")
