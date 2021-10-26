@@ -11,8 +11,11 @@ from array2gif import write_gif
 from custom.model import CustomActorCriticPolicy
 from custom.utils import load_cfg, smooth_data
 from stable_baselines3 import PPO
-from stable_baselines3.common.callbacks import EvalCallback
-from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.callbacks import (
+    CallbackList,
+    CheckpointCallback,
+    EvalCallback,
+)
 from stable_baselines3.common.vec_env import VecMonitor
 
 # NOTE: Don't forget to execute this script from 1 directory above experiments/
@@ -30,7 +33,7 @@ if __name__ == "__main__":
     eval_timeout = int(2.5e3)
     num_episodes = 1000
     # actual number of time steps
-    total_timesteps = num_episodes * train_timeout // num_envs
+    total_timesteps = num_episodes * train_timeout * num_envs
     # eval after every episode
     eval_freq = train_timeout // sumo_tstep
     save_path = "./logs/"
@@ -53,7 +56,7 @@ if __name__ == "__main__":
     )
     env = ss.pettingzoo_env_to_vec_env_v0(env)
     env = ss.concat_vec_envs_v0(
-        env, 2, num_cpus=num_cpus, base_class="stable_baselines3"
+        env, num_envs, num_cpus=num_cpus, base_class="stable_baselines3"
     )
     env = VecMonitor(env)
     eval_env = ss.pettingzoo_env_to_vec_env_v0(eval_env)
