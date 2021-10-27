@@ -140,6 +140,18 @@ class TrafficSignal:
         observation = np.array(phase_id + min_green + density + queue, dtype=np.float32)
         return observation
 
+    def _compute_waiting_MA_reward(self):
+        # avg waiting time running total
+        wait_time, num_vehicles = self.get_waiting_time_per_lane()
+        acc_waiting_time = (sum(wait_time) / 100) / num_vehicles
+        self._wait_x.append(acc_waiting_time)
+        self._wait_10x.append(acc_waiting_time)
+
+        # negative sign because a higher waiting time is worse
+        wait_reward = -(np.mean(self._wait_x) - np.mean(self._wait_10x))
+
+        return wait_reward
+
     def compute_reward(self):
         # d_pressure = self._pressure_reward()
         # r_pressure = d_pressure / 1e3
@@ -147,25 +159,18 @@ class TrafficSignal:
         # r_wait = self._waiting_time_reward()
         # # for r_wait, signs already handled in function
         # reward = 5 * r_pressure + 2 * (r_wait/20) + r_flow
-        
-        
+
         # self.press_reward = d_pressure
         # self.flow_rew = r_flow
         # self.wait_reward = r_wait
-        
+
         # urgency reward
         urgency_reward = self._compute_urgency_reward()
-        
-        # avg waiting time running total
-        # wait_time, num_vehicles = self.get_waiting_time_per_lane()
-        # acc_waiting_time = (sum(wait_time)/100) / num_vehicles
-        # self._wait_x.append(acc_waiting_time)
-        # self._wait_10x.append(acc_waiting_time)
-        # wait_reward = -(np.mean(self._wait_x) - np.mean(self._wait_10x))
-        
-        
+        wait_MA_reward = self._compute_waiting_MA_reward()
+
+        # return 0.5*(urgency_reward + wait_MA_reward)
         return urgency_reward
-    
+
     def _compute_urgency_reward(self):
         """ Compute urgency across all lanes """
         # urgency metric
