@@ -14,7 +14,7 @@ from stable_baselines3 import PPO, SAC
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.vec_env import VecMonitor
-from stable_baselines.common.callbacks import (
+from stable_baselines3.common.callbacks import (
     CallbackList,
     CheckpointCallback,
     EvalCallback,
@@ -25,7 +25,7 @@ from stable_baselines.common.callbacks import (
 if __name__ == "__main__":
     sumo_tstep = 7
     n_evaluations = 20
-    num_cpus = int(psutil.cpu_count() - 1)
+    num_cpus = 1#int(psutil.cpu_count() - 1)
     # You can not use LIBSUMO if using more than one env
     n_envs = int(num_cpus - 4)
     # set this to the same as generator.py
@@ -179,11 +179,11 @@ if __name__ == "__main__":
 
     model.learn(total_timesteps=train_timesteps)#, callback=TensorboardCallback(0))# callback=eval_callback)
     # save a learned model
-    save_path = "outputs/" + cfg.get("model_name")
+    save_path = "outputs/" + "MLPModel"
     model.save(save_path)
 
     train = False
-    save_path = eval_save_path + "final"
+    save_path = save_path + "final"
     if train:
         start_time = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         print(f"Start @ {start_time}")
@@ -196,7 +196,7 @@ if __name__ == "__main__":
         model.save(save_path)
 
     del model
-    model_path = eval_save_path + "best_model"
+    model_path = save_path + "best_model"
     model = PPO.load(model_path)
 
     mean_reward, std_reward = evaluate_policy(
