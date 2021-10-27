@@ -9,7 +9,7 @@ import supersuit as ss
 import torch
 from array2gif import write_gif
 from custom.model import CustomActorCriticPolicy
-from custom.utils import load_cfg, smooth_data
+from custom.utils import linear_schedule, load_cfg, smooth_data
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import (
     CallbackList,
@@ -269,7 +269,7 @@ if __name__ == "__main__":
         gamma=0.99,
         n_steps=256,
         ent_coef=0.0905168,
-        learning_rate=0.0001,
+        learning_rate=linear_schedule(1e-4),
         vf_coef=0.042202,
         max_grad_norm=0.9,
         gae_lambda=0.9,

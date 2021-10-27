@@ -83,6 +83,61 @@ class CustomNetwork(nn.Module):
         return self.policy_net(features), self.value_net(features)
 
 
+class CustomNetworkShared(nn.Module):
+    """
+    Custom network for policy and value function.
+    It receives as input the features extracted by the feature extractor.
+    :param feature_dim: dimension of the features extracted with the features_extractor (e.g. features from a CNN)
+    :param last_layer_dim_pi: (int) number of units for the last layer of the policy network
+    :param last_layer_dim_vf: (int) number of units for the last layer of the value network
+    """
+
+    def __init__(
+        self,
+        feature_dim: int,
+        last_layer_dim_pi: int = 64,
+        last_layer_dim_vf: int = 256,
+    ):
+        super(CustomNetwork, self).__init__()
+
+        # IMPORTANT:
+        # Save output dimensions, used to create the distributions
+        self.features_dim = feature_dim
+        self.latent_dim_pi = last_layer_dim_pi
+        self.latent_dim_vf = last_layer_dim_vf
+
+        shared_dim = 256
+        self.fc = nn.Linear(feature_dim, shared_dim)
+
+        # Policy network
+        self.policy_net = nn.Sequential(
+            nn.Linear(shared_dim, last_layer_dim_pi),
+            nn.Tanh(),
+            nn.Linear(last_layer_dim_pi, last_layer_dim_pi),
+            nn.Tanh(),
+        )
+        # Value network
+        self.value_net = nn.Sequential(
+            nn.Linear(shared_dim, last_layer_dim_vf),
+            nn.Tanh(),
+            nn.Linear(last_layer_dim_vf, last_layer_dim_vf),
+            nn.Tanh(),
+        )
+
+    def forward_actor(self, features):
+        return self.policy_net(features)
+
+    def forward_critic(self, features):
+        return self.value_net(features)
+
+    def forward(self, features: T.Tensor) -> Tuple[T.Tensor, T.Tensor]:
+        """
+        :return: (th.Tensor, th.Tensor) latent_policy, latent_value of the specified network.
+            If all layers are shared, then ``latent_policy == latent_value``
+        """
+        feat_ = self.fc(features)
+        return self.policy_net(feat_), self.value_net(feat_)
+
 class CustomActorCriticPolicy(ActorCriticPolicy):
     def __init__(
         self,
