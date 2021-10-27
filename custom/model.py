@@ -98,7 +98,7 @@ class CustomNetworkShared(nn.Module):
         last_layer_dim_pi: int = 64,
         last_layer_dim_vf: int = 256,
     ):
-        super(CustomNetwork, self).__init__()
+        super(CustomNetworkShared, self).__init__()
 
         # IMPORTANT:
         # Save output dimensions, used to create the distributions
