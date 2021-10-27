@@ -46,6 +46,8 @@ class TrafficSignal:
         self.press_reward = 0
         self.flow_rew = 0
         self.wait_reward = 0
+        self.last_urgency_reward = 0
+        self.last_wait_MA_reward = 0
         self._vehicle_size_min_gap = 7.5  # 5(vehSize) + 2.5(minGap)
         self._max_capacity = 100 # number of cars
         num_steps = 20
@@ -167,7 +169,11 @@ class TrafficSignal:
         # urgency reward
         urgency_reward = self._compute_urgency_reward()
         wait_MA_reward = self._compute_waiting_MA_reward()
-
+        
+        self.last_urgency_reward = urgency_reward
+        self.last_wait_MA_reward = wait_MA_reward
+        
+        self.last_reward = urgency_reward
         # return 0.5*(urgency_reward + wait_MA_reward)
         return urgency_reward
 
