@@ -262,8 +262,16 @@ if __name__ == "__main__":
     eval_env = VecMonitor(eval_env)
 
 
+
+    # Custom actor (pi) and value function (vf) networks
+    # of two layers of size 32 each with Relu activation function
+    policy_kwargs = dict(activation_fn=torch.nn.Tanh, net_arch=[256, dict(vf=[256, 256], pi=[64, 64])])
+
+
+
     model = PPO(
-        CustomActorCriticPolicy,
+        #CustomActorCriticPolicy,
+        "MlpPolicy",
         env,
         verbose=3,
         gamma=0.99,
@@ -276,6 +284,7 @@ if __name__ == "__main__":
         n_epochs=5,
         clip_range=0.25,
         batch_size=256,
+        policy_kwargs=policy_kwargs,
         tensorboard_log=save_path + "tensorboard",
     )
 
