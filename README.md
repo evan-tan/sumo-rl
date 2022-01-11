@@ -1,3 +1,14 @@
+# Changes from main repository
+This fork contains the modified code used as the base for experimenting with different neural network architectures and reward shaping.
+
+Most notably, we ...
+- experimented using Shared VS Separate Actor-Critic Networks using MLPs
+- crafted new reward functions (waiting time simple moving average reward, flow reward, and finally urgency reward), ultimately leading to a 47% decrease in waiting time and 10% increase in average speed
+
+Check out the project post & paper [here](https://evan-tan.github.io/projects/deep_rl_intelligent_traffic_management/index/)
+
+---
+
 <img src="outputs/logo.png" align="right" width="30%"/>
 
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
@@ -6,11 +17,11 @@
 
 # SUMO-RL
 
-SUMO-RL provides a simple interface to instantiate Reinforcement Learning environments with [SUMO](https://github.com/eclipse/sumo) for Traffic Signal Control. 
+SUMO-RL provides a simple interface to instantiate Reinforcement Learning environments with [SUMO](https://github.com/eclipse/sumo) for Traffic Signal Control.
 
-The main class [SumoEnvironment](https://github.com/LucasAlegre/sumo-rl/blob/master/sumo_rl/environment/env.py) behaves like a [MultiAgentEnv](https://github.com/ray-project/ray/blob/master/python/ray/rllib/env/multi_agent_env.py) from [RLlib](https://github.com/ray-project/ray/tree/master/python/ray/rllib).  
-If instantiated with parameter 'single-agent=True', it behaves like a regular [Gym Env](https://github.com/openai/gym/blob/master/gym/core.py) from [OpenAI](https://github.com/openai).  
-Call [env](https://github.com/LucasAlegre/sumo-rl/blob/master/sumo_rl/environment/env.py) or [parallel_env](https://github.com/LucasAlegre/sumo-rl/blob/master/sumo_rl/environment/env.py) for [PettingZoo](https://github.com/PettingZoo-Team/PettingZoo) environment support.  
+The main class [SumoEnvironment](https://github.com/LucasAlegre/sumo-rl/blob/master/sumo_rl/environment/env.py) behaves like a [MultiAgentEnv](https://github.com/ray-project/ray/blob/master/python/ray/rllib/env/multi_agent_env.py) from [RLlib](https://github.com/ray-project/ray/tree/master/python/ray/rllib).
+If instantiated with parameter 'single-agent=True', it behaves like a regular [Gym Env](https://github.com/openai/gym/blob/master/gym/core.py) from [OpenAI](https://github.com/openai).
+Call [env](https://github.com/LucasAlegre/sumo-rl/blob/master/sumo_rl/environment/env.py) or [parallel_env](https://github.com/LucasAlegre/sumo-rl/blob/master/sumo_rl/environment/env.py) for [PettingZoo](https://github.com/PettingZoo-Team/PettingZoo) environment support.
 [TrafficSignal](https://github.com/LucasAlegre/sumo-rl/blob/master/sumo_rl/environment/traffic_signal.py) is responsible for retrieving information and actuating on traffic lights using [TraCI](https://sumo.dlr.de/wiki/TraCI) API.
 
 Goals of this repository:
@@ -26,7 +37,7 @@ Goals of this repository:
 ```
 sudo add-apt-repository ppa:sumo/stable
 sudo apt-get update
-sudo apt-get install sumo sumo-tools sumo-doc 
+sudo apt-get install sumo sumo-tools sumo-doc
 ```
 Don't forget to set SUMO_HOME variable (default sumo installation path is /usr/share/sumo)
 ```
@@ -76,7 +87,7 @@ E.g.: In the [2-way single intersection](https://github.com/DLR-RM/stable-baseli
 <p align="center">
 <img src="outputs/actions.png" align="center" width="75%"/>
 </p>
-    
+
 Important: every time a phase change occurs, the next phase is preeceded by a yellow phase lasting ```yellow_time``` seconds.
 
 ### Rewards
@@ -85,7 +96,7 @@ The default reward function is the change in cumulative vehicle delay:
 <p align="center">
 <img src="outputs/reward.png" align="center" width="25%"/>
 </p>
-    
+
 That is, the reward is how much the total delay (sum of the waiting times of all approaching vehicles) changed in relation to the previous time-step.
 
 You can define your own reward function changing the method 'compute_reward' of [TrafficSignal](https://github.com/LucasAlegre/sumo-rl/blob/master/sumo_rl/environment/traffic_signal.py).
@@ -97,7 +108,7 @@ You can define your own reward function changing the method 'compute_reward' of 
 env = sumo_rl.env(net_file='sumo_net_file.net.xml',
                   route_file='sumo_route_file.rou.xml',
                   use_gui=True,
-                  num_seconds=3600)  
+                  num_seconds=3600)
 env.reset()
 for agent in env.agent_iter():
     observation, reward, done, info = env.last()
@@ -112,14 +123,14 @@ In the folder [nets/RESCO](https://github.com/LucasAlegre/sumo-rl/tree/master/ne
 <p align="center">
 <img src="nets/RESCO/maps.png" align="center" width="60%"/>
 </p>
-    
+
 ### Experiments
 
 Check [experiments](https://github.com/LucasAlegre/sumo-rl/tree/master/experiments) to see how to instantiate an environment and use it with your RL algorithm.
 
 ### [Q-learning](https://github.com/LucasAlegre/sumo-rl/blob/master/agents/ql_agent.py) in a one-way single intersection:
 ```
-python3 experiments/ql_single-intersection.py 
+python3 experiments/ql_single-intersection.py
 ```
 
 ### [RLlib A3C](https://github.com/ray-project/ray/tree/master/python/ray/rllib/agents/a3c) multiagent in a 4x4 grid:
@@ -134,7 +145,7 @@ python3 experiments/dqn_2way-single-intersection.py
 
 ### Plotting results:
 ```
-python3 outputs/plot.py -f outputs/2way-single-intersection/a3c 
+python3 outputs/plot.py -f outputs/2way-single-intersection/a3c
 ```
 <p align="center">
 <img src="outputs/result.png" align="center" width="70%"/>
