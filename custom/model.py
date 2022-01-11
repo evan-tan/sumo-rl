@@ -125,10 +125,12 @@ class CustomNetworkShared(nn.Module):
         )
 
     def forward_actor(self, features):
-        return self.policy_net(features)
+        feat_ = self.fc(features)
+        return self.policy_net(feat_)
 
     def forward_critic(self, features):
-        return self.value_net(features)
+        feat_ = self.fc(features)
+        return self.value_net(feat_)
 
     def forward(self, features: T.Tensor) -> Tuple[T.Tensor, T.Tensor]:
         """
