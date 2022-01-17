@@ -7,8 +7,7 @@ import psutil
 import sumo_rl
 import supersuit as ss
 import torch
-from array2gif import write_gif
-from custom.model import CustomActorCriticPolicy
+from custom.sb3_model import CustomActorCriticPolicy
 from custom.utils import linear_schedule, load_cfg, smooth_data
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import (
@@ -201,7 +200,7 @@ class EvalCallback(EventCallback):
                 # Trigger callback if needed
                 if self.callback is not None:
                     return self._on_event()
-                
+
             self.model.save(os.path.join(self.best_model_save_path, "model_" + str(self.num_timesteps) +"_" + str(mean_reward)))
 
         return True

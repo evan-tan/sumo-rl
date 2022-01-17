@@ -7,6 +7,8 @@ Most notably, we ...
 
 Check out the project post & paper [here](https://evan-tan.github.io/projects/deep_rl_intelligent_traffic_management/index/)
 
+To get started, run the `install.sh` script. __NOTE:__ this script was set up for a conda environment, simply ignore activating the conda environment and change lines 21-22 from `conda ...` to `pip ...` if you wish to perform installation with pip.
+
 ---
 
 <img src="outputs/logo.png" align="right" width="30%"/>
