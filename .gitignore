@@ -115,3 +115,4 @@ venv.bak/
 settings.json
 
 stable_baselines2
+.vscode
