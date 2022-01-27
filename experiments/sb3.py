@@ -7,19 +7,20 @@ import psutil
 import sumo_rl
 import supersuit as ss
 import torch
+
+# from custom.callbacks import EvalCallback
+from custom.callbacks import TensorboardCallback
 from custom.sb3_model import CustomActorCriticPolicy
 from custom.utils import load_cfg, smooth_data
 from stable_baselines3 import PPO, SAC
-from stable_baselines3.common.callbacks import BaseCallback
-from stable_baselines3.common.evaluation import evaluate_policy
-from stable_baselines3.common.vec_env import VecMonitor
 from stable_baselines3.common.callbacks import (
+    BaseCallback,
     CallbackList,
     CheckpointCallback,
     EvalCallback,
 )
-
-# NOTE: Don't forget to execute this script from 1 directory above experiments/
+from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.vec_env import VecMonitor
 
 if __name__ == "__main__":
     sumo_tstep = 7
@@ -105,33 +106,8 @@ if __name__ == "__main__":
 
     from stable_baselines3 import SAC
     from stable_baselines3.common.callbacks import BaseCallback
-
     from torch.utils.tensorboard import SummaryWriter
 
-    class TensorboardCallback(BaseCallback):
-        """
-        Custom callback for plotting additional values in tensorboard.
-        """
-
-        def __init__(self, verbose=0):
-            super(TensorboardCallback, self).__init__(verbose)
-            self.raw_envs = eval_env.unwrapped.vec_envs
-            self.envs = []
-            for i in range(len(self.raw_envs)):
-                self.envs.append(self.raw_envs[i].par_env.aec_env.env.env.env)
-
-            self.tb_writer = SummaryWriter(str("./Sumo"))
-            # self.metric_names = list(self.envs[0].metrics[-1].keys())
-            self.iter = 0
-
-        def find_and_record(self, name):
-            wait_times = [env.metrics[-1][name] for env in self.envs]
-            wait_time_names = [name + "/" + str(i) for i in range(len(self.envs))]
-            for i, name in enumerate(wait_time_names):
-                item = wait_times[i]
-                if type(item) == list:
-                    item = sum(item)
-                self.logger.record(name, item)
 
         def _on_step(self) -> bool:
 
@@ -219,34 +195,3 @@ if __name__ == "__main__":
     ax.plot(x, y, alpha=0.5)
     ax.plot(x, smooth_data(y, 0.9))
     plt.show()
-
-    """ render_env = sumo_rl.env(net_file='nets/4x4-Lucas/4x4.net.xml',
-                        route_file='nets/4x4-Lucas/4x4c1c2c1c2.rou.xml',
-                        out_csv_name='outputs/4x4grid/test',
-                        use_gui=False,
-                        num_seconds=80000)
-
-    render_env = render_env.parallel_env()
-    render_env = ss.color_reduction_v0(render_env, mode='B')
-    render_env = ss.resize_v0(render_env, x_size=84, y_size=84)
-    render_env = ss.frame_stack_v1(render_env, 3)
-
-    obs_list = []
-    i = 0
-    render_env.reset()
-
-
-    while True:
-        for agent in render_env.agent_iter():
-            observation, _, done, _ = render_env.last()
-            action = model.predict(observation, deterministic=True)[0] if not done else None
-
-            render_env.step(action)
-            i += 1
-            if i % (len(render_env.possible_agents)) == 0:
-                obs_list.append(np.transpose(render_env.render(mode='rgb_array'), axes=(1, 0, 2)))
-        render_env.close()
-        break
-
-    print('Writing gif')
-    write_gif(obs_list, 'kaz.gif', fps=15) """
