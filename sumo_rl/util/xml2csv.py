@@ -23,9 +23,11 @@ import socket
 import collections
 from optparse import OptionParser
 import xml.sax
+
 try:
     import lxml.etree
     import lxml.sax
+
     haveLxml = True
 except ImportError:
     haveLxml = False
@@ -54,12 +56,12 @@ class NestingHandler(xml.sax.handler.ContentHandler):
 
 
 class AttrFinder(NestingHandler):
-
     def __init__(self, xsdFile, source, split):
         NestingHandler.__init__(self)
         self.tagDepths = {}  # tag -> depth of appearance
         self.tagAttrs = collections.defaultdict(
-            collections.OrderedDict)  # tag -> set of attrs
+            collections.OrderedDict
+        )  # tag -> set of attrs
         self.renamedAttrs = {}  # (name, attr) -> renamedAttr
         self.attrs = {}
         self.depthTags = {}  # child of root: depth of appearance -> tag list
@@ -74,8 +76,7 @@ class AttrFinder(NestingHandler):
             else:
                 self.attrs[self.xsdStruc.root.name] = []
                 self.depthTags[self.xsdStruc.root.name] = []
-                self.recursiveAttrFind(
-                    self.xsdStruc.root, self.xsdStruc.root, 0)
+                self.recursiveAttrFind(self.xsdStruc.root, self.xsdStruc.root, 0)
         else:
             self.xsdStruc = None
             xml.sax.parse(source, self)
@@ -88,8 +89,7 @@ class AttrFinder(NestingHandler):
             self.depthTags[root][depth].append(name)
             return True
         if name not in self.depthTags[root][depth]:
-            print("Ignoring tag %s at depth %s" %
-                  (name, depth), file=sys.stderr)
+            print("Ignoring tag %s at depth %s" % (name, depth), file=sys.stderr)
         return False
 
     def recursiveAttrFind(self, root, currEle, depth):
@@ -127,7 +127,6 @@ class AttrFinder(NestingHandler):
 
 
 class CSVWriter(NestingHandler):
-
     def __init__(self, attrFinder, options):
         NestingHandler.__init__(self)
         self.attrFinder = attrFinder
@@ -147,20 +146,25 @@ class CSVWriter(NestingHandler):
                 if options.output:
                     outfilename = options.output + "%s.csv" % root
                 else:
-                    outfilename = os.path.splitext(
-                        options.source)[0] + "%s.csv" % root
-                self.outfiles[root] = open(outfilename, 'w')
-            if (PY3):
-                self.outfiles[root].write(str.encode(
-                    options.separator.join(map(self.quote, attrFinder.attrs[root])) + "\n"))
+                    outfilename = os.path.splitext(options.source)[0] + "%s.csv" % root
+                self.outfiles[root] = open(outfilename, "w")
+            if PY3:
+                self.outfiles[root].write(
+                    str.encode(
+                        options.separator.join(map(self.quote, attrFinder.attrs[root]))
+                        + "\n"
+                    )
+                )
             else:
                 self.outfiles[root].write(
-                    options.separator.join(map(self.quote, attrFinder.attrs[root])) + "\n")
+                    options.separator.join(map(self.quote, attrFinder.attrs[root]))
+                    + "\n"
+                )
 
     def quote(self, s):
         return "%s%s%s" % (self.options.quotechar, s, self.options.quotechar)
 
-# the following two are needed for the lxml saxify to work
+    # the following two are needed for the lxml saxify to work
     def startElementNS(self, name, qname, attrs):
         self.startElement(qname, attrs)
 
@@ -171,16 +175,17 @@ class CSVWriter(NestingHandler):
         NestingHandler.startElement(self, name, attrs)
         if self.depth() >= self.rootDepth:
             root = self.tagstack[self.rootDepth]
-#            print("start", name, root, self.depth(), self.attrFinder.depthTags[root][self.depth()])
+            #            print("start", name, root, self.depth(), self.attrFinder.depthTags[root][self.depth()])
             if name in self.attrFinder.depthTags[root][self.depth()]:
                 for a, v in attrs.items():
                     if isinstance(a, tuple):
                         a = a[1]
-#                    print(a, dict(self.attrFinder.tagAttrs[name]))
+                    #                    print(a, dict(self.attrFinder.tagAttrs[name]))
                     if a in self.attrFinder.tagAttrs[name]:
                         if self.attrFinder.xsdStruc:
                             enum = self.attrFinder.xsdStruc.getEnumeration(
-                                self.attrFinder.tagAttrs[name][a].type)
+                                self.attrFinder.tagAttrs[name][a].type
+                            )
                             if enum:
                                 v = enum.index(v)
                         a2 = self.attrFinder.renamedAttrs.get((name, a), a)
@@ -190,15 +195,31 @@ class CSVWriter(NestingHandler):
     def endElement(self, name):
         if self.depth() >= self.rootDepth:
             root = self.tagstack[self.rootDepth]
-#            print("end", name, root, self.depth(), self.attrFinder.depthTags[root][self.depth()], self.haveUnsavedValues)
+            #            print("end", name, root, self.depth(), self.attrFinder.depthTags[root][self.depth()], self.haveUnsavedValues)
             if name in self.attrFinder.depthTags[root][self.depth()]:
                 if self.haveUnsavedValues:
-                    if(PY3):
-                        self.outfiles[root].write(str.encode(self.options.separator.join(
-                            [self.quote(self.currentValues[a]) for a in self.attrFinder.attrs[root]]) + "\n"))
+                    if PY3:
+                        self.outfiles[root].write(
+                            str.encode(
+                                self.options.separator.join(
+                                    [
+                                        self.quote(self.currentValues[a])
+                                        for a in self.attrFinder.attrs[root]
+                                    ]
+                                )
+                                + "\n"
+                            )
+                        )
                     else:
-                        self.outfiles[root].write(self.options.separator.join(
-                            [self.quote(self.currentValues[a]) for a in self.attrFinder.attrs[root]]) + "\n")
+                        self.outfiles[root].write(
+                            self.options.separator.join(
+                                [
+                                    self.quote(self.currentValues[a])
+                                    for a in self.attrFinder.attrs[root]
+                                ]
+                            )
+                            + "\n"
+                        )
                     self.haveUnsavedValues = False
                 for a in self.attrFinder.tagAttrs[name]:
                     a2 = self.attrFinder.renamedAttrs.get((name, a), a)
@@ -206,7 +227,7 @@ class CSVWriter(NestingHandler):
         NestingHandler.endElement(self, name)
 
 
-def getSocketStream(port, mode='rb'):
+def getSocketStream(port, mode="rb"):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind(("localhost", port))
     s.listen(1)
@@ -216,22 +237,35 @@ def getSocketStream(port, mode='rb'):
 
 def getOutStream(output):
     if output.isdigit():
-        return getSocketStream(int(output), 'wb')
-    return open(output, 'wb')
+        return getSocketStream(int(output), "wb")
+    return open(output, "wb")
 
 
 def get_options():
     optParser = OptionParser(
-        usage=os.path.basename(sys.argv[0]) + " [<options>] <input_file_or_port>")
-    optParser.add_option("-s", "--separator", default=";",
-                         help="separating character for fields")
-    optParser.add_option("-q", "--quotechar", default='',
-                         help="quoting character for fields")
+        usage=os.path.basename(sys.argv[0]) + " [<options>] <input_file_or_port>"
+    )
+    optParser.add_option(
+        "-s", "--separator", default=";", help="separating character for fields"
+    )
+    optParser.add_option(
+        "-q", "--quotechar", default="", help="quoting character for fields"
+    )
     optParser.add_option("-x", "--xsd", help="xsd schema to use")
-    optParser.add_option("-a", "--validation", action="store_true",
-                         default=False, help="enable schema validation")
-    optParser.add_option("-p", "--split", action="store_true",
-                         default=False, help="split in different files for the first hierarchy level")
+    optParser.add_option(
+        "-a",
+        "--validation",
+        action="store_true",
+        default=False,
+        help="enable schema validation",
+    )
+    optParser.add_option(
+        "-p",
+        "--split",
+        action="store_true",
+        default=False,
+        help="split in different files for the first hierarchy level",
+    )
     optParser.add_option("-o", "--output", help="base name for output")
     options, args = optParser.parse_args()
     if len(args) != 1:
@@ -249,7 +283,9 @@ def get_options():
         options.source = args[0]
     if options.output and options.output.isdigit() and options.split:
         print(
-            "it is not possible to use splitting together with stream output", file=sys.stderr)
+            "it is not possible to use splitting together with stream output",
+            file=sys.stderr,
+        )
         sys.exit()
     return options
 
@@ -267,6 +303,7 @@ def main():
         lxml.sax.saxify(tree, handler)
     else:
         xml.sax.parse(options.source, handler)
+
 
 if __name__ == "__main__":
     main()

@@ -47,6 +47,7 @@ def smooth_data(scalars: List[float], weight: float) -> List[float]:
 
     return smoothed
 
+
 def load_cfg(json_file) -> np.ndarray:
     with open(json_file, "r") as f:
         return json.load(f)
@@ -61,9 +62,9 @@ def env_creator(num_timesteps, paths, parallel=False):
     """For PettingZoo"""
     env_timestep = 5
     assert len(paths.keys()) != 0
-    net = paths.get('net')
-    route = paths.get('route')
-    out_csv = paths.get('output_csv')
+    net = paths.get("net")
+    route = paths.get("route")
+    out_csv = paths.get("output_csv")
 
     if parallel:
         env = sumo_rl.parallel_env(

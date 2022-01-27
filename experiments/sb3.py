@@ -24,7 +24,7 @@ from stable_baselines3.common.callbacks import (
 if __name__ == "__main__":
     sumo_tstep = 7
     n_evaluations = 20
-    num_cpus = 1#int(psutil.cpu_count() - 1)
+    num_cpus = 1  # int(psutil.cpu_count() - 1)
     # You can not use LIBSUMO if using more than one env
     n_envs = int(num_cpus - 4)
     # set this to the same as generator.py
@@ -103,7 +103,6 @@ if __name__ == "__main__":
     cb_chain = CallbackList([checkpoint_callback, eval_callback])
     model.learn(total_timesteps=train_timesteps, callback=cb_chain)
 
-
     from stable_baselines3 import SAC
     from stable_baselines3.common.callbacks import BaseCallback
 
@@ -122,61 +121,58 @@ if __name__ == "__main__":
                 self.envs.append(self.raw_envs[i].par_env.aec_env.env.env.env)
 
             self.tb_writer = SummaryWriter(str("./Sumo"))
-            #self.metric_names = list(self.envs[0].metrics[-1].keys())
+            # self.metric_names = list(self.envs[0].metrics[-1].keys())
             self.iter = 0
-
 
         def find_and_record(self, name):
             wait_times = [env.metrics[-1][name] for env in self.envs]
-            wait_time_names = [name + '/' + str(i) for i in range(len(self.envs))]
+            wait_time_names = [name + "/" + str(i) for i in range(len(self.envs))]
             for i, name in enumerate(wait_time_names):
                 item = wait_times[i]
                 if type(item) == list:
                     item = sum(item)
                 self.logger.record(name, item)
 
-
         def _on_step(self) -> bool:
 
-            #Log scalar value (here a random variable)
+            # Log scalar value (here a random variable)
 
             return True
 
         def __call__(self, a, b):
-            metrics = a['infos'][0]
+            metrics = a["infos"][0]
 
-            #if len(metrics) != 0:
+            # if len(metrics) != 0:
             #    for item in list(metrics.keys())[2:]:
             #        self.find_and_record(item)
-            #else:
+            # else:
             #    self.iter += 1
 
-            #self.logger.dump(self.num_timesteps + self.iter*eval_timesteps)
+            # self.logger.dump(self.num_timesteps + self.iter*eval_timesteps)
 
-            #worker_number = self.env.label
+            # worker_number = self.env.label
             run_number = 1
 
-            max_sumo_timestep = eval_timesteps# self.env.sim_max_time
+            max_sumo_timestep = eval_timesteps  # self.env.sim_max_time
             current_timestep = self.num_timesteps
 
-            total_sumo_timestep = current_timestep + run_number*max_sumo_timestep
-            #last_info = self.env.metrics[-1]
+            total_sumo_timestep = current_timestep + run_number * max_sumo_timestep
+            # last_info = self.env.metrics[-1]
 
             log_metric_names = list(metrics.keys())[1:]
 
             for key, val in metrics.items():
-                #key += "/" + str(worker_number)
+                # key += "/" + str(worker_number)
                 if type(val) is list or type(val) is np.ndarray:
                     val = np.mean(val)
                 self.tb_writer.add_scalar(key, val, current_timestep)
-            #print("added")
+            # print("added")
 
             print("tru")
 
-
-
-
-    model.learn(total_timesteps=train_timesteps)#, callback=TensorboardCallback(0))# callback=eval_callback)
+    model.learn(
+        total_timesteps=train_timesteps
+    )  # , callback=TensorboardCallback(0))# callback=eval_callback)
     # save a learned model
     save_path = "outputs/" + "MLPModel"
     model.save(save_path)

@@ -29,7 +29,11 @@ import numpy as np
 
 from stable_baselines3.common import base_class  # pytype: disable=pyi-error
 from stable_baselines3.common.evaluation import evaluate_policy
-from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv, sync_envs_normalization
+from stable_baselines3.common.vec_env import (
+    DummyVecEnv,
+    VecEnv,
+    sync_envs_normalization,
+)
 
 from stable_baselines3.common.callbacks import (
     CallbackList,
@@ -37,6 +41,7 @@ from stable_baselines3.common.callbacks import (
     EventCallback,
     BaseCallback,
 )
+
 
 class EvalCallback(EventCallback):
     """
@@ -107,7 +112,10 @@ class EvalCallback(EventCallback):
     def _init_callback(self) -> None:
         # Does not work in some corner cases, where the wrapper is not the same
         if not isinstance(self.training_env, type(self.eval_env)):
-            warnings.warn("Training and eval env are not of the same type" f"{self.training_env} != {self.eval_env}")
+            warnings.warn(
+                "Training and eval env are not of the same type"
+                f"{self.training_env} != {self.eval_env}"
+            )
 
         # Create folders if needed
         if self.best_model_save_path is not None:
@@ -115,7 +123,9 @@ class EvalCallback(EventCallback):
         if self.log_path is not None:
             os.makedirs(os.path.dirname(self.log_path), exist_ok=True)
 
-    def _log_success_callback(self, locals_: Dict[str, Any], globals_: Dict[str, Any]) -> None:
+    def _log_success_callback(
+        self, locals_: Dict[str, Any], globals_: Dict[str, Any]
+    ) -> None:
         """
         Callback passed to the  ``evaluate_policy`` function
         in order to log the success rate (when applicable),
@@ -171,11 +181,16 @@ class EvalCallback(EventCallback):
                 )
 
             mean_reward, std_reward = np.mean(episode_rewards), np.std(episode_rewards)
-            mean_ep_length, std_ep_length = np.mean(episode_lengths), np.std(episode_lengths)
+            mean_ep_length, std_ep_length = np.mean(episode_lengths), np.std(
+                episode_lengths
+            )
             self.last_mean_reward = mean_reward
 
             if self.verbose > 0:
-                print(f"Eval num_timesteps={self.num_timesteps}, " f"episode_reward={mean_reward:.2f} +/- {std_reward:.2f}")
+                print(
+                    f"Eval num_timesteps={self.num_timesteps}, "
+                    f"episode_reward={mean_reward:.2f} +/- {std_reward:.2f}"
+                )
                 print(f"Episode length: {mean_ep_length:.2f} +/- {std_ep_length:.2f}")
             # Add to current Logger
             self.logger.record("eval/mean_reward", float(mean_reward))
@@ -188,20 +203,29 @@ class EvalCallback(EventCallback):
                 self.logger.record("eval/success_rate", success_rate)
 
             # Dump log so the evaluation results are printed with the correct timestep
-            self.logger.record("time/total timesteps", self.num_timesteps, exclude="tensorboard")
+            self.logger.record(
+                "time/total timesteps", self.num_timesteps, exclude="tensorboard"
+            )
             self.logger.dump(self.num_timesteps)
 
             if mean_reward > self.best_mean_reward:
                 if self.verbose > 0:
                     print("New best mean reward!")
                 if self.best_model_save_path is not None:
-                    self.model.save(os.path.join(self.best_model_save_path, "best_model"))
+                    self.model.save(
+                        os.path.join(self.best_model_save_path, "best_model")
+                    )
                 self.best_mean_reward = mean_reward
                 # Trigger callback if needed
                 if self.callback is not None:
                     return self._on_event()
 
-            self.model.save(os.path.join(self.best_model_save_path, "model_" + str(self.num_timesteps) +"_" + str(mean_reward)))
+            self.model.save(
+                os.path.join(
+                    self.best_model_save_path,
+                    "model_" + str(self.num_timesteps) + "_" + str(mean_reward),
+                )
+            )
 
         return True
 
@@ -239,7 +263,7 @@ if __name__ == "__main__":
         out_csv_name="outputs/big-intersection/test",
         use_gui=True,
         num_seconds=train_timeout,
-        delta_time=sumo_tstep
+        delta_time=sumo_tstep,
     )
     eval_env = sumo_rl.parallel_env(
         net_file="nets/big-intersection/big-intersection.net.xml",
@@ -247,7 +271,7 @@ if __name__ == "__main__":
         out_csv_name="outputs/big-intersection/eval",
         use_gui=True,
         num_seconds=eval_timeout,
-        delta_time=sumo_tstep
+        delta_time=sumo_tstep,
     )
     env = ss.pettingzoo_env_to_vec_env_v0(env)
     env = ss.concat_vec_envs_v0(
@@ -260,16 +284,14 @@ if __name__ == "__main__":
     )
     eval_env = VecMonitor(eval_env)
 
-
-
     # Custom actor (pi) and value function (vf) networks
     # of two layers of size 32 each with Relu activation function
-    policy_kwargs = dict(activation_fn=torch.nn.Tanh, net_arch=[256, dict(vf=[256, 256], pi=[64, 64])])
-
-
+    policy_kwargs = dict(
+        activation_fn=torch.nn.Tanh, net_arch=[256, dict(vf=[256, 256], pi=[64, 64])]
+    )
 
     model = PPO(
-        #CustomActorCriticPolicy,
+        # CustomActorCriticPolicy,
         "MlpPolicy",
         env,
         verbose=3,

@@ -4,8 +4,8 @@ from pathlib import Path
 
 import sumo_rl
 
-if 'SUMO_HOME' in os.environ:
-    tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
+if "SUMO_HOME" in os.environ:
+    tools = os.path.join(os.environ["SUMO_HOME"], "tools")
     sys.path.append(tools)
 else:
     sys.exit("Please declare the environment variable 'SUMO_HOME'")
@@ -24,7 +24,7 @@ from pettingzoo.utils.conversions import parallel_wrapper_fn
 
 from .traffic_signal import TrafficSignal
 
-LIBSUMO = 'LIBSUMO_AS_TRACI' in os.environ
+LIBSUMO = "LIBSUMO_AS_TRACI" in os.environ
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -34,6 +34,7 @@ def env(**kwargs):
     env = wrappers.AssertOutOfBoundsWrapper(env)
     env = wrappers.OrderEnforcingWrapper(env)
     return env
+
 
 parallel_env = parallel_wrapper_fn(env)
 
@@ -56,19 +57,38 @@ class SumoEnvironment:
     :sumo_seed: (int/string) Random seed for sumo. If 'random' it uses a randomly chosen seed.
     :fixed_ts: (bool) If true, it will follow the phase configuration in the route_file and ignore the actions.
     """
+
     CONNECTION_LABEL = 0  # For traci multi-client support
 
-    def __init__(self, net_file, route_file, out_csv_name=None, use_gui=False, begin_time=0, num_seconds=20000, max_depart_delay=100000,
-                 time_to_teleport=-1, delta_time=5, yellow_time=2, min_green=5, max_green=50, single_agent=False, sumo_seed='random', fixed_ts=False):
+    def __init__(
+        self,
+        net_file,
+        route_file,
+        out_csv_name=None,
+        use_gui=False,
+        begin_time=0,
+        num_seconds=20000,
+        max_depart_delay=100000,
+        time_to_teleport=-1,
+        delta_time=5,
+        yellow_time=2,
+        min_green=5,
+        max_green=50,
+        single_agent=False,
+        sumo_seed="random",
+        fixed_ts=False,
+    ):
         self._net = net_file
         self._route = route_file
         self.use_gui = use_gui
         if self.use_gui:
-            self._sumo_binary = sumolib.checkBinary('sumo-gui')
+            self._sumo_binary = sumolib.checkBinary("sumo-gui")
         else:
-            self._sumo_binary = sumolib.checkBinary('sumo')
+            self._sumo_binary = sumolib.checkBinary("sumo")
 
-        assert delta_time > yellow_time, "Time between actions must be at least greater than yellow time."
+        assert (
+            delta_time > yellow_time
+        ), "Time between actions must be at least greater than yellow time."
 
         self.begin_time = begin_time
         self.sim_max_time = num_seconds
@@ -86,26 +106,36 @@ class SumoEnvironment:
         self.sumo = None
 
         if LIBSUMO:
-            traci.start([sumolib.checkBinary('sumo'), '-n', self._net])  # Start only to retrieve traffic light information
+            traci.start(
+                [sumolib.checkBinary("sumo"), "-n", self._net]
+            )  # Start only to retrieve traffic light information
             conn = traci
         else:
-            traci.start([sumolib.checkBinary('sumo'), '-n', self._net], label='init_connection'+self.label)
-            conn = traci.getConnection('init_connection'+self.label)
+            traci.start(
+                [sumolib.checkBinary("sumo"), "-n", self._net],
+                label="init_connection" + self.label,
+            )
+            conn = traci.getConnection("init_connection" + self.label)
         self.ts_ids = list(conn.trafficlight.getIDList())
-        self.traffic_signals = {ts: TrafficSignal(self,
-                                                  ts,
-                                                  self.delta_time,
-                                                  self.yellow_time,
-                                                  self.min_green,
-                                                  self.max_green,
-                                                  self.begin_time,
-                                                  conn) for ts in self.ts_ids}
+        self.traffic_signals = {
+            ts: TrafficSignal(
+                self,
+                ts,
+                self.delta_time,
+                self.yellow_time,
+                self.min_green,
+                self.max_green,
+                self.begin_time,
+                conn,
+            )
+            for ts in self.ts_ids
+        }
         conn.close()
 
         self.vehicles = dict()
-        self.reward_range = (-float('inf'), float('inf'))
+        self.reward_range = (-float("inf"), float("inf"))
         self.metadata = {}
-        self.spec = EnvSpec('SUMORL-v0')
+        self.spec = EnvSpec("SUMORL-v0")
         self.run = 0
         self.metrics = []
         self.out_csv_name = out_csv_name
@@ -113,20 +143,27 @@ class SumoEnvironment:
         self.rewards = {ts: None for ts in self.ts_ids}
 
     def _start_simulation(self):
-        sumo_cmd = [self._sumo_binary,
-                     '-n', self._net,
-                     '-r', self._route,
-                     '--max-depart-delay', str(self.max_depart_delay),
-                     '--waiting-time-memory', '10000',
-                     '--time-to-teleport', str(self.time_to_teleport)]
+        sumo_cmd = [
+            self._sumo_binary,
+            "-n",
+            self._net,
+            "-r",
+            self._route,
+            "--max-depart-delay",
+            str(self.max_depart_delay),
+            "--waiting-time-memory",
+            "10000",
+            "--time-to-teleport",
+            str(self.time_to_teleport),
+        ]
         if self.begin_time > 0:
-            sumo_cmd.append('-b {}'.format(self.begin_time))
-        if self.sumo_seed == 'random':
-            sumo_cmd.append('--random')
+            sumo_cmd.append("-b {}".format(self.begin_time))
+        if self.sumo_seed == "random":
+            sumo_cmd.append("--random")
         else:
-            sumo_cmd.extend(['--seed', str(self.sumo_seed)])
+            sumo_cmd.extend(["--seed", str(self.sumo_seed)])
         if self.use_gui:
-            sumo_cmd.extend(['--start', '--quit-on-end'])
+            sumo_cmd.extend(["--start", "--quit-on-end"])
 
         if LIBSUMO:
             traci.start(sumo_cmd)
@@ -144,14 +181,19 @@ class SumoEnvironment:
 
         self._start_simulation()
 
-        self.traffic_signals = {ts: TrafficSignal(self,
-                                                  ts,
-                                                  self.delta_time,
-                                                  self.yellow_time,
-                                                  self.min_green,
-                                                  self.max_green,
-                                                  self.begin_time,
-                                                  self.sumo) for ts in self.ts_ids}
+        self.traffic_signals = {
+            ts: TrafficSignal(
+                self,
+                ts,
+                self.delta_time,
+                self.yellow_time,
+                self.min_green,
+                self.max_green,
+                self.begin_time,
+                self.sumo,
+            )
+            for ts in self.ts_ids
+        }
         self.vehicles = dict()
 
         if self.single_agent:
@@ -181,7 +223,12 @@ class SumoEnvironment:
         self._compute_info()
 
         if self.single_agent:
-            return observations[self.ts_ids[0]], rewards[self.ts_ids[0]], dones['__all__'], {}
+            return (
+                observations[self.ts_ids[0]],
+                rewards[self.ts_ids[0]],
+                dones["__all__"],
+                {},
+            )
         else:
             return observations, rewards, dones, {}
 
@@ -210,7 +257,7 @@ class SumoEnvironment:
 
     def _compute_dones(self):
         dones = {ts_id: False for ts_id in self.ts_ids}
-        dones['__all__'] = self.sim_step > self.sim_max_time
+        dones["__all__"] = self.sim_step > self.sim_max_time
         return dones
 
     def _compute_info(self):
@@ -218,12 +265,32 @@ class SumoEnvironment:
         self.metrics.append(info)
 
     def _compute_observations(self):
-        self.observations.update({ts: self.traffic_signals[ts].compute_observation() for ts in self.ts_ids if self.traffic_signals[ts].time_to_act})
-        return {ts: self.observations[ts].copy() for ts in self.observations.keys() if self.traffic_signals[ts].time_to_act}
+        self.observations.update(
+            {
+                ts: self.traffic_signals[ts].compute_observation()
+                for ts in self.ts_ids
+                if self.traffic_signals[ts].time_to_act
+            }
+        )
+        return {
+            ts: self.observations[ts].copy()
+            for ts in self.observations.keys()
+            if self.traffic_signals[ts].time_to_act
+        }
 
     def _compute_rewards(self):
-        self.rewards.update({ts: self.traffic_signals[ts].compute_reward() for ts in self.ts_ids if self.traffic_signals[ts].time_to_act})
-        return {ts: self.rewards[ts] for ts in self.rewards.keys() if self.traffic_signals[ts].time_to_act}
+        self.rewards.update(
+            {
+                ts: self.traffic_signals[ts].compute_reward()
+                for ts in self.ts_ids
+                if self.traffic_signals[ts].time_to_act
+            }
+        )
+        return {
+            ts: self.rewards[ts]
+            for ts in self.rewards.keys()
+            if self.traffic_signals[ts].time_to_act
+        }
 
     @property
     def observation_space(self):
@@ -246,13 +313,14 @@ class SumoEnvironment:
         total_halted_per_lane = self.traffic_signals[self.ts_ids[0]].get_total_halted()
         mean_speed_per_lane = self.traffic_signals[self.ts_ids[0]].get_mean_speed()
         occupancy_per_lane = self.traffic_signals[self.ts_ids[0]].get_occupancy()
-        vehicle_number_per_lane = self.traffic_signals[self.ts_ids[0]].get_vehicle_number()
+        vehicle_number_per_lane = self.traffic_signals[
+            self.ts_ids[0]
+        ].get_vehicle_number()
         travel_time_per_lane = self.traffic_signals[self.ts_ids[0]].get_travel_time()
 
         return {
-
-            'step_time': self.sim_step,
-            'reward': self.traffic_signals[self.ts_ids[0]].last_reward,
+            "step_time": self.sim_step,
+            "reward": self.traffic_signals[self.ts_ids[0]].last_reward,
             #'flow_diff_reward': self.traffic_signals[self.ts_ids[0]].flow_rew,
             #'queue_average_diff_reward': self.traffic_signals[self.ts_ids[0]]._queue_average_reward(),
             #'queue_reward': self.traffic_signals[self.ts_ids[0]]._queue_reward(),
@@ -260,31 +328,34 @@ class SumoEnvironment:
             # 'waiting_time_diff_reward2': self.traffic_signals[self.ts_ids[0]]._waiting_time_reward2(),
             # 'waiting_time_diff_reward3': self.traffic_signals[self.ts_ids[0]]._waiting_time_reward3(),
             #'pressure_diff_reward': self.traffic_signals[self.ts_ids[0]].press_reward,
-
-            'urgency_reward': self.traffic_signals[self.ts_ids[0]].last_urgency_reward,
-            'wait_MA_reward': self.traffic_signals[self.ts_ids[0]].last_wait_MA_reward,
-
-            'average_speed (flow)': self.traffic_signals[self.ts_ids[0]]._current_flow(),
-            'pressure': self.traffic_signals[self.ts_ids[0]].get_pressure(),
-
-            'total_halted_per_lane': total_halted_per_lane,
-            'mean_speed_per_lane': mean_speed_per_lane,
-            'occupancy_per_lane': occupancy_per_lane,
-            'vehicle_number_per_lane': vehicle_number_per_lane,
-            'travel_time_per_lane': travel_time_per_lane,
-
+            "urgency_reward": self.traffic_signals[self.ts_ids[0]].last_urgency_reward,
+            "wait_MA_reward": self.traffic_signals[self.ts_ids[0]].last_wait_MA_reward,
+            "average_speed (flow)": self.traffic_signals[
+                self.ts_ids[0]
+            ]._current_flow(),
+            "pressure": self.traffic_signals[self.ts_ids[0]].get_pressure(),
+            "total_halted_per_lane": total_halted_per_lane,
+            "mean_speed_per_lane": mean_speed_per_lane,
+            "occupancy_per_lane": occupancy_per_lane,
+            "vehicle_number_per_lane": vehicle_number_per_lane,
+            "travel_time_per_lane": travel_time_per_lane,
             # 'sum_total_halted_per_lane': sum(total_halted_per_lane),
             # 'sum_mean_speed_per_lane': sum(mean_speed_per_lane),
             # 'sum_occupancy_per_lane': sum(occupancy_per_lane),
             # 'sum_vehicle_number_per_lane': sum(vehicle_number_per_lane),
             # 'sum_travel_time_per_lane': sum(travel_time_per_lane),
-
-            'wait_time_per_lane_per_lane': self.traffic_signals[self.ts_ids[0]].get_waiting_time_per_lane(),
-            'lanes_out_density_per_lane': self.traffic_signals[self.ts_ids[0]].get_out_lanes_density(),
-            'lanes_density_per_lane': self.traffic_signals[self.ts_ids[0]].get_lanes_density(),
-            'lanes_queue_per_lane': self.traffic_signals[self.ts_ids[0]].get_lanes_queue(),
-
-
+            "wait_time_per_lane_per_lane": self.traffic_signals[
+                self.ts_ids[0]
+            ].get_waiting_time_per_lane(),
+            "lanes_out_density_per_lane": self.traffic_signals[
+                self.ts_ids[0]
+            ].get_out_lanes_density(),
+            "lanes_density_per_lane": self.traffic_signals[
+                self.ts_ids[0]
+            ].get_lanes_density(),
+            "lanes_queue_per_lane": self.traffic_signals[
+                self.ts_ids[0]
+            ].get_lanes_queue(),
         }
 
     def close(self):
@@ -305,23 +376,31 @@ class SumoEnvironment:
         if out_csv_name is not None:
             df = pd.DataFrame(self.metrics)
             Path(Path(out_csv_name).parent).mkdir(parents=True, exist_ok=True)
-            df.to_csv(out_csv_name + '_conn{}_run{}'.format(self.label, run) + '.csv', index=False)
+            df.to_csv(
+                out_csv_name + "_conn{}_run{}".format(self.label, run) + ".csv",
+                index=False,
+            )
 
     # Below functions are for discrete state space
 
     def encode(self, state, ts_id):
-        phase = int(np.where(state[:self.traffic_signals[ts_id].num_green_phases] == 1)[0])
+        phase = int(
+            np.where(state[: self.traffic_signals[ts_id].num_green_phases] == 1)[0]
+        )
         min_green = state[self.traffic_signals[ts_id].num_green_phases]
-        density_queue = [self._discretize_density(d) for d in state[self.traffic_signals[ts_id].num_green_phases + 1:]]
+        density_queue = [
+            self._discretize_density(d)
+            for d in state[self.traffic_signals[ts_id].num_green_phases + 1 :]
+        ]
         # tuples are hashable and can be used as key in python dictionary
         return tuple([phase, min_green] + density_queue)
 
     def _discretize_density(self, density):
-        return min(int(density*10), 9)
+        return min(int(density * 10), 9)
 
 
 class SumoEnvironmentPZ(AECEnv, EzPickle):
-    metadata = {'render.modes': [], 'name': "sumo_rl_v0"}
+    metadata = {"render.modes": [], "name": "sumo_rl_v0"}
 
     def __init__(self, **kwargs):
         EzPickle.__init__(self, **kwargs)
@@ -336,14 +415,16 @@ class SumoEnvironmentPZ(AECEnv, EzPickle):
         self.agent_selection = self._agent_selector.reset()
         # spaces
         self.action_spaces = {a: self.env.action_spaces(a) for a in self.agents}
-        self.observation_spaces = {a: self.env.observation_spaces(a) for a in self.agents}
+        self.observation_spaces = {
+            a: self.env.observation_spaces(a) for a in self.agents
+        }
 
         # dicts
         self.rewards = {a: 0 for a in self.agents}
         self.dones = {a: False for a in self.agents}
         self.infos = {a: {} for a in self.agents}
 
-        #self.tb_writer = SummaryWriter(str(Path.cwd() / "Sumo") + str(self.env.label))
+        # self.tb_writer = SummaryWriter(str(Path.cwd() / "Sumo") + str(self.env.label))
 
     def seed(self, seed=None):
         self.randomizer, seed = seeding.np_random(seed)
@@ -362,12 +443,12 @@ class SumoEnvironmentPZ(AECEnv, EzPickle):
         return obs
 
     def state(self):
-        raise NotImplementedError('Method state() currently not implemented.')
+        raise NotImplementedError("Method state() currently not implemented.")
 
     def close(self):
         self.env.close()
 
-    def render(self, mode='human'):
+    def render(self, mode="human"):
         return self.env.render(mode)
 
     def save_csv(self, out_csv_name, run):
@@ -378,8 +459,10 @@ class SumoEnvironmentPZ(AECEnv, EzPickle):
             return self._was_done_step(action)
         agent = self.agent_selection
         if not self.action_spaces[agent].contains(action):
-            raise Exception('Action for agent {} must be in Discrete({}).'
-                            'It is currently {}'.format(agent, self.action_spaces[agent].n, action))
+            raise Exception(
+                "Action for agent {} must be in Discrete({})."
+                "It is currently {}".format(agent, self.action_spaces[agent].n, action)
+            )
 
         self.env._apply_actions({agent: action})
 
@@ -391,13 +474,12 @@ class SumoEnvironmentPZ(AECEnv, EzPickle):
         else:
             self._clear_rewards()
 
-        done = self.env._compute_dones()['__all__']
-        self.dones = {a : done for a in self.agents}
+        done = self.env._compute_dones()["__all__"]
+        self.dones = {a: done for a in self.agents}
 
         self.agent_selection = self._agent_selector.next()
         self._cumulative_rewards[agent] = 0
         self._accumulate_rewards()
-
 
     def tensorboard_logger(self):
 
@@ -407,20 +489,16 @@ class SumoEnvironmentPZ(AECEnv, EzPickle):
         max_sumo_timestep = self.env.sim_max_time
         current_timestep = self.env.sim_step
 
-        total_sumo_timestep = current_timestep + run_number*max_sumo_timestep
+        total_sumo_timestep = current_timestep + run_number * max_sumo_timestep
         last_info = self.env.metrics[-1]
 
         log_metric_names = list(last_info.keys())[1:]
 
         for key, val in last_info.items():
-            #key += "/" + str(worker_number)
+            # key += "/" + str(worker_number)
             if val is not None:
                 if type(val) is list:
                     val = np.mean(val)
 
                 self.tb_writer.add_scalar(key, val, current_timestep)
-                #print("added")
-
-
-
-
+                # print("added")
