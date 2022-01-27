@@ -11,6 +11,7 @@ from stable_baselines3.common.vec_env import (
     VecEnv,
     sync_envs_normalization,
 )
+from torch.utils.tensorboard import SummaryWriter
 
 
 class EvalCallback(EventCallback):
@@ -216,6 +217,7 @@ class TensorboardCallback(BaseCallback):
 
     def __init__(self, verbose=0):
         super(TensorboardCallback, self).__init__(verbose)
+        # TODO: fix eval_env variable
         self.raw_envs = eval_env.unwrapped.vec_envs
         self.envs = []
         for i in range(len(self.raw_envs)):
@@ -233,3 +235,40 @@ class TensorboardCallback(BaseCallback):
             if type(item) == list:
                 item = sum(item)
             self.logger.record(name, item)
+
+    def _on_step(self) -> bool:
+
+        # Log scalar value (here a random variable)
+
+        return True
+
+    def __call__(self, a, b):
+        metrics = a["infos"][0]
+
+        # if len(metrics) != 0:
+        #    for item in list(metrics.keys())[2:]:
+        #        self.find_and_record(item)
+        # else:
+        #    self.iter += 1
+
+        # self.logger.dump(self.num_timesteps + self.iter*eval_timesteps)
+
+        # worker_number = self.env.label
+        run_number = 1
+
+        max_sumo_timestep = eval_timesteps  # self.env.sim_max_time
+        current_timestep = self.num_timesteps
+
+        total_sumo_timestep = current_timestep + run_number * max_sumo_timestep
+        # last_info = self.env.metrics[-1]
+
+        log_metric_names = list(metrics.keys())[1:]
+
+        for key, val in metrics.items():
+            # key += "/" + str(worker_number)
+            if type(val) is list or type(val) is np.ndarray:
+                val = np.mean(val)
+            self.tb_writer.add_scalar(key, val, current_timestep)
+        # print("added")
+
+        print("tru")
