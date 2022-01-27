@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-REQUIRED = ['gym', 'numpy', 'pandas', 'pillow']
+REQUIRED = ["gym", "numpy", "pandas", "pillow"]
 
 extras = {
     "pettingzoo": ["pettingzoo"],
@@ -8,17 +8,17 @@ extras = {
 extras["all"] = extras["pettingzoo"]
 
 setup(
-    name='sumo-rl',
-    version='1.0',
-    packages=['sumo_rl'],
+    name="sumo-rl",
+    version="1.0",
+    packages=["sumo_rl"],
     install_requires=REQUIRED,
     extras_require=extras,
-    author='LucasAlegre',
-    author_email='lucasnale@gmail.com',
-    url='https://github.com/LucasAlegre/sumo-rl',
-    download_url='https://github.com/LucasAlegre/sumo-rl/archive/v1.0.tar.gz',
+    author="LucasAlegre",
+    author_email="lucasnale@gmail.com",
+    url="https://github.com/LucasAlegre/sumo-rl",
+    download_url="https://github.com/LucasAlegre/sumo-rl/archive/v1.0.tar.gz",
     long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
     license="MIT",
-    description='RL environments and learning code for traffic signal control in SUMO.'
+    description="RL environments and learning code for traffic signal control in SUMO.",
 )
