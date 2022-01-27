@@ -11,13 +11,21 @@ jobs:
         run: |
             echo "py_files=$(find . -name '*.py' | tr '\n' ' ')" >> $GITHUB_ENV
       - uses: psf/black@stable
-        id: blacklint
+        id: lintcheck
+        with:
+          options: "--verbose"
+          src: "${{ env.py_files }}"
+          version: "21.5b1"
+
+      - uses: psf/black@stable
+        if: steps.lintcheck.outcome != 'success'
         with:
             options: "--verbose"
             src: "${{ env.py_files }}"
             version: "21.5b1"
+
       - name: Commit changes
-        if: steps.blacklint.outcome == 'success'
+        if: steps.lintcheck.outcome != 'success'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
