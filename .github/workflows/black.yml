@@ -22,6 +22,7 @@ jobs:
           set -xo pipefail
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
+          git fetch
           git add .
           git commit -m "Lint $(git rev-parse source | grep -o '^.\{10\}')"
-          git push "https://${GITHUB_ACTOR}:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" main
+          git push "https://${GITHUB_ACTOR}:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ${{ github.ref }}
