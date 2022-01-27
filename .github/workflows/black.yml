@@ -7,8 +7,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Store all python files in env variable
+        run: |
+            echo "py_files=$(find . --name "*.py")" >> $GITHUB_ENV
       - uses: psf/black@stable
         with:
             options: "--verbose"
-            src: "./custom ./setup.py"
+            src: "${{ py_files }}"
             version: "21.5b1"
