@@ -13,7 +13,7 @@ jobs:
       - uses: psf/black@stable
         id: lintcheck
         with:
-          options: "--verbose"
+          options: "--check --verbose"
           src: "${{ env.py_files }}"
           version: "21.5b1"
 
