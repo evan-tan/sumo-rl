@@ -13,5 +13,5 @@ jobs:
       - uses: psf/black@stable
         with:
             options: "--verbose"
-            src: "${{ py_files }}"
+            src: "${{ env.py_files }}"
             version: "21.5b1"
