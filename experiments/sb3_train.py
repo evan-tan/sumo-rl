@@ -15,7 +15,7 @@ from stable_baselines3.common.callbacks import EvalCallback
 if __name__ == "__main__":
 
     n_evaluations = 20
-    cfg = utils.load_cfg("../config.yml")
+    cfg = utils.load_cfg("config.yml")
 
     # NOTE: You can not use LIBSUMO if using more than one env
     assert cfg.num_cpus < psutil.cpu_count()
@@ -49,13 +49,13 @@ if __name__ == "__main__":
         clip_range=0.25,
         batch_size=256,
         policy_kwargs=policy_kwargs,
-        tensorboard_log=cfg.output_path + "tensorboard",
+        tensorboard_log=cfg.paths.output_path + "tensorboard",
     )
 
     eval_callback = EvalCallback(
         eval_env,
-        best_model_save_path=cfg.output_path + "best_model",
-        log_path=cfg.output_path + "eval",
+        best_model_save_path=cfg.paths.output_path + "best_model",
+        log_path=cfg.paths.output_path + "eval",
         eval_freq=eval_freq,
         deterministic=True,
         render=False,
@@ -64,12 +64,12 @@ if __name__ == "__main__":
 
     train = True
     if train:
-        start_time = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        start_time = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         print(f"Start @ {start_time}")
 
         model.learn(total_timesteps=total_timesteps, callback=eval_callback)
-        end_time = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        end_time = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         print(f"End @ {end_time}")
 
         # save a learned model
-        model.save(cfg.output_path + "final_model")
+        model.save(cfg.paths.output_path + "final_model")
