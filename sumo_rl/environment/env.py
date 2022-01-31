@@ -26,8 +26,6 @@ from .traffic_signal import TrafficSignal
 
 LIBSUMO = "LIBSUMO_AS_TRACI" in os.environ
 
-from torch.utils.tensorboard import SummaryWriter
-
 
 def env(**kwargs):
     env = SumoEnvironmentPZ(**kwargs)
@@ -423,8 +421,6 @@ class SumoEnvironmentPZ(AECEnv, EzPickle):
         self.rewards = {a: 0 for a in self.agents}
         self.dones = {a: False for a in self.agents}
         self.infos = {a: {} for a in self.agents}
-
-        # self.tb_writer = SummaryWriter(str(Path.cwd() / "Sumo") + str(self.env.label))
 
     def seed(self, seed=None):
         self.randomizer, seed = seeding.np_random(seed)
