@@ -5,7 +5,7 @@ Most notably, we ...
 - experimented using Shared VS Separate Actor-Critic Networks using MLPs
 - crafted new reward functions (waiting time simple moving average reward, flow reward, and finally urgency reward), ultimately leading to a 47% decrease in waiting time and 10% increase in average speed
 
-Check out the project post & paper [here](https://evan-tan.github.io/projects/deep_rl_intelligent_traffic_management/index/)
+Check out the project post & paper [here](https://evantancy.github.io/projects/deep-rl-intelligent-traffic-management/index)
 
 To get started, __(it is recommended you do this in a virtual environment using conda)__
 - run the `pip3 install -r requirements.txt`
