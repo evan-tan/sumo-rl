@@ -7,6 +7,14 @@ Most notably, we ...
 
 Check out the project post & paper [here](https://evan-tan.github.io/projects/deep_rl_intelligent_traffic_management/index/)
 
+To get started, __(it is recommended you do this in a virtual environment using conda)__
+- run the `pip3 install -r requirements.txt`
+- [install SUMO](#install-sumo-latest-version)
+- run `pip3 install -e .` in this directory
+
+# Training
+Edit `config.yml`, from the project root directory run `python experiments/sb3_train.py` (for example)
+
 ---
 
 <img src="outputs/logo.png" align="right" width="30%"/>

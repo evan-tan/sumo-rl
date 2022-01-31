@@ -1,0 +1,22 @@
+# THIS SHOULDN'T BE CHANGED!
+env_tstep: 7
+
+# Edit everything below this line if needed
+
+env_parallel: True
+num_cpus: 18
+num_envs: 16
+
+paths:
+    net_file: "nets/big-intersection/big-intersection.net.xml"
+    route_file: "nets/big-intersection/routes.rou.xml"
+    output_path: "outputs/big-intersection/"
+
+train:
+    show_gui: False
+    env_timeout: 1.5e4
+    num_episodes: 1e3
+
+eval:
+    show_gui: False
+    env_timeout: 2.5e3

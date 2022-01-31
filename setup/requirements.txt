@@ -1,0 +1,15 @@
+traci
+nb_black
+ray[tune]
+stable-baselines3[extra]
+pettingzoo[all]
+supersuit
+array2gif
+dm_tree
+tabulate
+lz4
+array2gif
+tensorflow
+tensorboardx
+opency-python
+scipy

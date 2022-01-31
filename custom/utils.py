@@ -1,9 +1,14 @@
 import json
+import re
 from typing import Callable, List
 
 import numpy as np
+import pettingzoo
 import sumo_rl
-from stable_baselines3 import PPO
+import supersuit as ss
+import yaml
+from attrdict import AttrDict
+from stable_baselines3.common.vec_env import VecMonitor
 
 
 def linear_schedule(initial_value: float) -> Callable[[float], float]:
@@ -47,9 +52,38 @@ def smooth_data(scalars: List[float], weight: float) -> List[float]:
 
     return smoothed
 
-def load_cfg(json_file) -> np.ndarray:
-    with open(json_file, "r") as f:
-        return json.load(f)
+
+def load_cfg(_file: str) -> dict:
+    """Load config.json
+    Args:
+        file (str): file path to YAML config
+    Returns:
+        dict: config stuff
+    """
+
+    cfg = None
+    with open(_file) as f:
+        if ".json" in _file:
+            cfg = json.load(f)
+        elif ".yaml" in _file or ".yml" in _file:
+            _loader = yaml.SafeLoader
+            _loader.add_implicit_resolver(
+                u"tag:yaml.org,2002:float",
+                re.compile(
+                    u"""^(?:
+     [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
+    |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
+    |\\.[0-9_]+(?:[eE][-+][0-9]+)?
+    |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
+    |[-+]?\\.(?:inf|Inf|INF)
+    |\\.(?:nan|NaN|NAN))$""",
+                    re.X,
+                ),
+                list(u"-+0123456789."),
+            )
+            _tmp = yaml.load(f, Loader=_loader)
+            cfg = AttrDict(_tmp)
+    return cfg
 
 
 def unsqueeze(arr: np.ndarray, dim: int) -> np.ndarray:
@@ -57,24 +91,42 @@ def unsqueeze(arr: np.ndarray, dim: int) -> np.ndarray:
     return np.expand_dims(arr, axis=dim)
 
 
-def env_creator(num_timesteps, paths, parallel=False):
-    """For PettingZoo"""
-    env_timestep = 5
-    assert len(paths.keys()) != 0
-    net = paths.get('net')
-    route = paths.get('route')
-    out_csv = paths.get('output_csv')
+def env_creator(cfg: yaml, mode: str) -> pettingzoo.AECEnv:
+    """For PettingZoo environments
 
-    if parallel:
+    Args:
+        cfg    (yaml): json file containing all relevant keys
+        mode    (str): str representing "train" or "eval"
+    Returns:
+        pettingzoo.AECEnv: PettingZoo parallel environment
+    """
+
+    # time unit conversion between simulators
+    YELLOW_TIME = 2
+    GREEN_TIME = 5
+    assert cfg.env_tstep == (YELLOW_TIME + GREEN_TIME)
+
+    net = cfg.paths.net_file
+    route = cfg.paths.route_file
+    out_csv = cfg.paths.output_path
+
+    assert mode in cfg.keys()
+    # dependent on train/eval mode
+    subconfig = cfg.get(mode)
+    subconfig = AttrDict(subconfig)
+    # actual number of seconds in SUMO before time out
+    timeout = int(subconfig.env_timeout)
+
+    if cfg.env_parallel:
         env = sumo_rl.parallel_env(
             net_file=net,
             route_file=route,
             out_csv_name=out_csv,
-            use_gui=True,
-            num_seconds=int(num_timesteps),
-            delta_time=env_timestep,
-            yellow_time=2,
-            min_green=5,
+            use_gui=subconfig.show_gui,
+            num_seconds=timeout,
+            delta_time=cfg.env_tstep,
+            yellow_time=YELLOW_TIME,
+            min_green=GREEN_TIME,
             max_green=50,
         )
     else:
@@ -82,12 +134,32 @@ def env_creator(num_timesteps, paths, parallel=False):
             net_file=net,
             route_file=route,
             out_csv_name=out_csv,
-            use_gui=True,
-            num_seconds=int(num_timesteps),
-            delta_time=env_timestep,
-            yellow_time=2,
-            min_green=5,
+            use_gui=subconfig.show_gui,
+            num_seconds=timeout,
+            delta_time=cfg.env_tstep,
+            yellow_time=YELLOW_TIME,
+            min_green=GREEN_TIME,
             max_green=50,
         )
 
+    # OVERRIDE num_envs and num_cpus for eval mode
+    num_envs = 1 if mode == "eval" else cfg.num_envs
+    num_cpus = 1 if mode == "eval" else cfg.num_cpus
+
+    env = ss.pettingzoo_env_to_vec_env_v0(env)
+    env = ss.concat_vec_envs_v0(
+        env, num_envs, num_cpus=num_cpus, base_class="stable_baselines3"
+    )
+    env = VecMonitor(env)
     return env
+
+
+if __name__ == "__main__":
+    cfg = load_cfg("../config.yml")
+    print(cfg)
+    print(cfg.train.env_timeout)
+    print(cfg.paths.net_file)
+    print(cfg.train)
+    print("train" in cfg.keys())
+    print(cfg.get("train"))
+    test_env = env_creator(cfg, "train")

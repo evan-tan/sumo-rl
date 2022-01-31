@@ -3,7 +3,6 @@ from gym import spaces
 
 
 class EpsilonGreedy:
-
     def __init__(self, initial_epsilon=1.0, min_epsilon=0.0, decay=0.99):
         self.initial_epsilon = initial_epsilon
         self.epsilon = initial_epsilon
@@ -16,8 +15,8 @@ class EpsilonGreedy:
         else:
             action = np.argmax(q_table[state])
 
-        self.epsilon = max(self.epsilon*self.decay, self.min_epsilon)
-        #print(self.epsilon)
+        self.epsilon = max(self.epsilon * self.decay, self.min_epsilon)
+        # print(self.epsilon)
         return action
 
     def reset(self):
