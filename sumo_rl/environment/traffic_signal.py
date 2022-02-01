@@ -6,10 +6,14 @@ if "SUMO_HOME" in os.environ:
     sys.path.append(tools)
 else:
     sys.exit("Please declare the environment variable 'SUMO_HOME'")
+from collections import deque
+
 import numpy as np
 import traci
 from gym import spaces
-from collections import deque
+
+# super small number
+eps = 7 / 3 - 4 / 3 - 1
 
 
 class TrafficSignal:
@@ -203,7 +207,7 @@ class TrafficSignal:
     def _compute_waiting_MA_reward(self):
         # avg waiting time running total
         wait_time, num_vehicles = self.get_waiting_time_per_lane()
-        acc_waiting_time = (sum(wait_time) / 100) / num_vehicles
+        acc_waiting_time = (sum(wait_time) / 100) / (num_vehicles + eps)
         self._wait_x.append(acc_waiting_time)
         self._wait_10x.append(acc_waiting_time)
 
